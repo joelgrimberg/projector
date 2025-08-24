@@ -64,8 +64,14 @@ func CreateTable(dbPath, tableName string) error {
 			note TEXT,
 			due_date DATE,
 			status_id INTEGER NOT NULL DEFAULT 1,
+			repeat_count INTEGER DEFAULT 0,
+			repeat_interval TEXT,
+			repeat_pattern TEXT,
+			repeat_until DATE,
+			parent_task_id INTEGER,
 			FOREIGN KEY (project_id) REFERENCES project (id) ON DELETE SET NULL,
-			FOREIGN KEY (status_id) REFERENCES status (id)
+			FOREIGN KEY (status_id) REFERENCES status (id),
+			FOREIGN KEY (parent_task_id) REFERENCES task (id) ON DELETE SET NULL
 		);`
 	case "tag":
 		createTableSQL = `
@@ -166,6 +172,11 @@ func CheckTableSchema(dbPath, tableName string) error {
 			"note TEXT",
 			"due_date DATE",
 			"status_id INTEGER",
+			"repeat_count INTEGER",
+			"repeat_interval TEXT",
+			"repeat_pattern TEXT",
+			"repeat_until DATE",
+			"parent_task_id INTEGER",
 		},
 		"tag": {
 			"id INTEGER",
@@ -200,7 +211,7 @@ func CheckTableSchema(dbPath, tableName string) error {
 func GetExpectedSchema(tableName string) string {
 	expectedSchemas := map[string]string{
 		"project":  "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, due_date DATE",
-		"task":     "id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER, name TEXT NOT NULL, note TEXT, due_date DATE, status_id INTEGER NOT NULL",
+		"task":     "id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER, name TEXT NOT NULL, note TEXT, due_date DATE, status_id INTEGER NOT NULL, repeat_count INTEGER DEFAULT 0, repeat_interval TEXT, repeat_pattern TEXT, repeat_until DATE, parent_task_id INTEGER",
 		"tag":      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE",
 		"task_tag": "task_id INTEGER NOT NULL, tag_id INTEGER NOT NULL",
 		"status":   "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE",
@@ -271,4 +282,55 @@ func GetActualSchema(dbPath, tableName string) string {
 func DatabaseExists(dbPath string) bool {
 	_, err := os.Stat(dbPath)
 	return err == nil
+}
+
+// DeleteProject deletes a project from the database
+func DeleteProject(dbPath string, projectID uint) error {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Check if project exists
+	project, err := GetProjectByID(dbPath, projectID)
+	if err != nil {
+		return fmt.Errorf("error checking project existence: %v", err)
+	}
+	if project == nil {
+		return fmt.Errorf("project not found")
+	}
+
+	// Delete the project
+	query := "DELETE FROM project WHERE id = ?"
+	_, err = db.Exec(query, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to delete project: %v", err)
+	}
+
+	return nil
+}
+
+// VerifyStatusTableData checks if the status table contains the expected initial data
+func VerifyStatusTableData(dbPath string) (bool, error) {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Check if the expected statuses exist
+	query := `
+		SELECT COUNT(*) FROM status 
+		WHERE (id = 1 AND name = 'todo') 
+		   OR (id = 2 AND name = 'done')`
+
+	var count int
+	err = db.QueryRow(query).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to verify status data: %v", err)
+	}
+
+	// Should have exactly 2 statuses (todo and done)
+	return count == 2, nil
 }

@@ -37,13 +37,16 @@ func (s *Server) Start() error {
 	addr := fmt.Sprintf(":%d", s.port)
 	fmt.Printf("🚀 API server starting on port %d...\n", s.port)
 	fmt.Printf("📡 Endpoints available:\n")
-	fmt.Printf("   GET  /api/tasks      - List all tasks\n")
-	fmt.Printf("   PUT  /api/tasks      - Create new task\n")
-	fmt.Printf("   GET  /api/tasks/:id  - Get task by ID\n")
-	fmt.Printf("   GET  /api/projects   - List all projects\n")
-	fmt.Printf("   PUT  /api/projects   - Create new project\n")
-	fmt.Printf("   GET  /api/projects/:id - Get project by ID\n")
-	fmt.Printf("   GET  /health         - Health check\n")
+	fmt.Printf("   GET    /api/tasks      - List all tasks\n")
+	fmt.Printf("   PUT    /api/tasks      - Create new task\n")
+	fmt.Printf("   GET    /api/tasks/:id  - Get task by ID\n")
+	fmt.Printf("   PUT    /api/tasks/:id  - Mark task as done\n")
+	fmt.Printf("   DELETE /api/tasks/:id  - Delete task\n")
+	fmt.Printf("   GET    /api/projects   - List all projects\n")
+	fmt.Printf("   PUT    /api/projects   - Create new project\n")
+	fmt.Printf("   GET    /api/projects/:id - Get project by ID\n")
+	fmt.Printf("   DELETE /api/projects/:id - Delete project\n")
+	fmt.Printf("   GET    /health         - Health check\n")
 	fmt.Printf("   Press 'q' to quit\n\n")
 
 	return http.ListenAndServe(addr, nil)
@@ -82,11 +85,15 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		// Parse request body
 		var taskRequest struct {
-			Name      string `json:"name"`
-			Note      string `json:"note,omitempty"`
-			ProjectID *int   `json:"project_id,omitempty"`
-			DueDate   string `json:"due_date,omitempty"`
-			StatusID  int    `json:"status_id"`
+			Name           string `json:"name"`
+			Note           string `json:"note,omitempty"`
+			ProjectID      *uint  `json:"project_id,omitempty"`
+			DueDate        string `json:"due_date,omitempty"`
+			StatusID       uint   `json:"status_id"`
+			RepeatCount    uint   `json:"repeat_count,omitempty"`
+			RepeatInterval string `json:"repeat_interval,omitempty"`
+			RepeatPattern  string `json:"repeat_pattern,omitempty"`
+			RepeatUntil    string `json:"repeat_until,omitempty"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&taskRequest); err != nil {
@@ -105,7 +112,7 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Create the task
-		taskID, err := database.CreateTask(s.dbPath, taskRequest.Name, taskRequest.Note, taskRequest.ProjectID, taskRequest.DueDate, taskRequest.StatusID)
+		taskID, err := database.CreateTask(s.dbPath, taskRequest.Name, taskRequest.Note, taskRequest.ProjectID, taskRequest.DueDate, taskRequest.StatusID, taskRequest.RepeatCount, taskRequest.RepeatInterval, taskRequest.RepeatPattern, taskRequest.RepeatUntil, nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error creating task: %v", err), http.StatusInternalServerError)
 			return
@@ -137,11 +144,6 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleTaskByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Extract ID from URL path
 	path := r.URL.Path
 	if len(path) < 12 { // "/api/tasks/" is 12 characters
@@ -150,30 +152,85 @@ func (s *Server) handleTaskByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	taskIDStr := path[12:] // Remove "/api/tasks/" prefix
-	taskID, err := strconv.Atoi(taskIDStr)
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
 		return
 	}
+	taskIDUint := uint(taskID)
 
-	// Get task by ID
-	task, err := database.GetTaskByID(s.dbPath, taskID)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error retrieving task: %v", err), http.StatusInternalServerError)
-		return
+	switch r.Method {
+	case "GET":
+		// Get task by ID
+		task, err := database.GetTaskByID(s.dbPath, taskIDUint)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error retrieving task: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		if task == nil {
+			http.Error(w, "Task not found", http.StatusNotFound)
+			return
+		}
+
+		response := map[string]interface{}{
+			"success": true,
+			"task":    task,
+		}
+
+		json.NewEncoder(w).Encode(response)
+
+	case "DELETE":
+		// Delete the task
+		err := database.DeleteTask(s.dbPath, taskIDUint)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error deleting task: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]interface{}{
+			"success": true,
+			"message": "Task deleted successfully",
+			"task_id": taskIDUint,
+		}
+
+		json.NewEncoder(w).Encode(response)
+
+	case "PUT":
+		// Parse request body for action
+		var actionRequest struct {
+			Action string `json:"action"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&actionRequest); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		switch actionRequest.Action {
+		case "done":
+			// Mark task as done and handle repetition
+			err := database.MarkTaskAsDone(s.dbPath, taskIDUint)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error marking task as done: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			response := map[string]interface{}{
+				"success": true,
+				"message": "Task marked as done",
+				"task_id": taskIDUint,
+			}
+
+			json.NewEncoder(w).Encode(response)
+
+		default:
+			http.Error(w, fmt.Sprintf("Unknown action: %s", actionRequest.Action), http.StatusBadRequest)
+		}
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
-
-	if task == nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
-		return
-	}
-
-	response := map[string]interface{}{
-		"success": true,
-		"task":    task,
-	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
 // handleProjects handles project-related requests
@@ -247,11 +304,6 @@ func (s *Server) handleProjects(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Extract ID from URL path
 	path := r.URL.Path
 	if len(path) < 15 { // "/api/projects/" is 15 characters
@@ -260,28 +312,52 @@ func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	projectIDStr := path[15:] // Remove "/api/projects/" prefix
-	projectID, err := strconv.Atoi(projectIDStr)
+	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid project ID", http.StatusBadRequest)
 		return
 	}
+	projectIDUint := uint(projectID)
 
-	// Get project by ID
-	project, err := database.GetProjectByID(s.dbPath, projectID)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error retrieving project: %v", err), http.StatusInternalServerError)
+	switch r.Method {
+	case "GET":
+		// Get project by ID
+		project, err := database.GetProjectByID(s.dbPath, projectIDUint)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error retrieving project: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		if project == nil {
+			http.Error(w, "Project not found", http.StatusNotFound)
+			return
+		}
+
+		response := map[string]interface{}{
+			"success": true,
+			"project": project,
+		}
+
+		json.NewEncoder(w).Encode(response)
+
+	case "DELETE":
+		// Delete the project
+		err := database.DeleteProject(s.dbPath, projectIDUint)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error deleting project: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]interface{}{
+			"success":    true,
+			"message":    "Project deleted successfully",
+			"project_id": projectIDUint,
+		}
+
+		json.NewEncoder(w).Encode(response)
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	if project == nil {
-		http.Error(w, "Project not found", http.StatusNotFound)
-		return
-	}
-
-	response := map[string]interface{}{
-		"success": true,
-		"project": project,
-	}
-
-	json.NewEncoder(w).Encode(response)
 }

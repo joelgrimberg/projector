@@ -60,7 +60,7 @@ func initCmd() *cobra.Command {
 func migrateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "migrate",
-		Short: "Migrate database schema to add note field to tasks",
+		Short: "Migrate database schema to add note and repeat fields to tasks",
 		Run: func(cmd *cobra.Command, args []string) {
 			runMigration()
 		},
@@ -84,28 +84,42 @@ func runMigration() {
 	}
 	defer db.Close()
 
-	// Check if note column already exists
-	var columnExists int
-	err = db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('task') WHERE name='note'").Scan(&columnExists)
-	if err != nil {
-		fmt.Printf("❌ Failed to check column existence: %v\n", err)
-		return
+	// List of columns to add
+	columns := []struct {
+		name    string
+		sql     string
+		display string
+	}{
+		{"note", "ALTER TABLE task ADD COLUMN note TEXT", "note"},
+		{"repeat_count", "ALTER TABLE task ADD COLUMN repeat_count INTEGER DEFAULT 0", "repeat_count"},
+		{"repeat_interval", "ALTER TABLE task ADD COLUMN repeat_interval TEXT", "repeat_interval"},
+		{"repeat_pattern", "ALTER TABLE task ADD COLUMN repeat_pattern TEXT", "repeat_pattern"},
+		{"repeat_until", "ALTER TABLE task ADD COLUMN repeat_until DATE", "repeat_until"},
+		{"parent_task_id", "ALTER TABLE task ADD COLUMN parent_task_id INTEGER", "parent_task_id"},
 	}
 
-	if columnExists > 0 {
-		fmt.Println("✅ Note column already exists in task table.")
-		return
+	// Add each column if it doesn't exist
+	for _, col := range columns {
+		var columnExists int
+		err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('task') WHERE name='%s'", col.name)).Scan(&columnExists)
+		if err != nil {
+			fmt.Printf("❌ Failed to check %s column existence: %v\n", col.name, err)
+			continue
+		}
+
+		if columnExists == 0 {
+			fmt.Printf("📝 Adding %s column to task table...\n", col.display)
+			_, err = db.Exec(col.sql)
+			if err != nil {
+				fmt.Printf("❌ Failed to add %s column: %v\n", col.display, err)
+				continue
+			}
+			fmt.Printf("✅ Successfully added %s column\n", col.display)
+		} else {
+			fmt.Printf("✅ %s column already exists\n", col.display)
+		}
 	}
 
-	// Add note column
-	fmt.Println("📝 Adding note column to task table...")
-	_, err = db.Exec("ALTER TABLE task ADD COLUMN note TEXT")
-	if err != nil {
-		fmt.Printf("❌ Failed to add note column: %v\n", err)
-		return
-	}
-
-	fmt.Println("✅ Successfully added note column to task table!")
 	fmt.Println("🔄 Migration completed successfully!")
 }
 
@@ -184,6 +198,18 @@ func displayTasks() {
 		// Show due date if available
 		if task.DueDate.Valid {
 			fmt.Printf("     📅 Due: %s\n", task.DueDate.String)
+		}
+
+		// Show repeat information if available
+		if task.RepeatCount > 0 && task.RepeatInterval.Valid {
+			fmt.Printf("     🔄 Repeat: %d times every %s", task.RepeatCount, task.RepeatInterval.String)
+			if task.RepeatPattern.Valid && task.RepeatPattern.String != "" {
+				fmt.Printf(" on %s", task.RepeatPattern.String)
+			}
+			if task.RepeatUntil.Valid {
+				fmt.Printf(" until %s", task.RepeatUntil.String)
+			}
+			fmt.Println()
 		}
 
 		// Show status

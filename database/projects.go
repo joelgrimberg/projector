@@ -8,7 +8,7 @@ import (
 
 // Project represents a project in the database
 type Project struct {
-	ID      int
+	ID      uint
 	Name    string
 	DueDate sql.NullString
 }
@@ -47,7 +47,7 @@ func GetAllProjects(dbPath string) ([]Project, error) {
 }
 
 // GetProjectByID retrieves a project by its ID
-func GetProjectByID(dbPath string, projectID int) (*Project, error) {
+func GetProjectByID(dbPath string, projectID uint) (*Project, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func GetProjectByID(dbPath string, projectID int) (*Project, error) {
 }
 
 // CreateProject creates a new project in the database
-func CreateProject(dbPath, name, dueDate string) (int, error) {
+func CreateProject(dbPath, name, dueDate string) (uint, error) {
 	// Validate input data
 	if err := ValidateProjectInput(name, dueDate); err != nil {
 		return 0, err
@@ -106,5 +106,5 @@ func CreateProject(dbPath, name, dueDate string) (int, error) {
 		return 0, err
 	}
 
-	return int(projectID), nil
+	return uint(projectID), nil
 }

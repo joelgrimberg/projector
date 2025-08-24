@@ -5,11 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"main/database"
+	"main/models"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"main/database"
-	"main/models"
 )
 
 const maxResults = 5 // Maximum number of rows to display
@@ -95,8 +96,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				return m, createTableStep(m.tableIndex)
 			}
-		case 2, 3, 4, 5, 6: // Continue processing tables (5 tables total)
-			if m.tableIndex < 4 { // 5 tables total (0-4)
+		case 2, 3, 4, 5, 6, 7: // Continue processing tables (6 steps total due to status seeding/verification)
+			if m.step == 3 && m.tableIndex == 1 { // Special case: status table seeding or verification
+				if m.schemaMode {
+					return m, verifyStatusTableStep()
+				} else {
+					return m, seedStatusTableStep()
+				}
+			} else if m.tableIndex < 4 { // 5 tables total (0-4)
 				m.tableIndex++
 				if m.schemaMode {
 					return m, checkTableSchemaStep(m.tableIndex)
@@ -136,9 +143,9 @@ func (m Model) View() string {
 	if abortedDueToSchema {
 		// Show abort message when schema validation failed
 		s += "\n❌ Initialization aborted due to schema differences!\n"
-	} else if m.step >= 6 && m.tableIndex >= 4 {
-		// Show success message when all tables are processed (5 tables total, indices 0-4)
-		s += "\n✅ Initialization complete!\n"
+	} else if m.step >= 7 && m.tableIndex >= 4 {
+		// Show success message when all tables are processed (6 steps total due to status seeding)
+		s += "\n🎉 Initialization complete!\n"
 	} else {
 		// Only show "Press any key to exit" when initialization is still in progress
 		s += helpStyle("\nPress any key to exit\n")
@@ -166,7 +173,7 @@ func runInitStep() tea.Cmd {
 			if err != nil {
 				return models.Result{Emoji: "❌", Message: "Failed to create database"}
 			}
-			return models.Result{Emoji: "✔", Message: "Database created"}
+			return models.Result{Emoji: "🗃️", Message: "Database created"}
 		}
 	}
 }
@@ -182,6 +189,22 @@ func createTableStep(tableIndex int) tea.Cmd {
 		err := database.CreateTable(database.DatabaseName, table)
 		if err != nil {
 			return models.Result{Emoji: "❌", Message: fmt.Sprintf("Failed to create table `%s`", table)}
+		}
+
+		// If this is the status table, show creation message first
+		if table == "status" {
+			return models.Result{Emoji: "📝", Message: "Table `status` created"}
+		}
+
+		// Use 🚀 for project and task tables, 🏷️ for tag table, 🧩 for task_tag table
+		if table == "project" || table == "task" {
+			return models.Result{Emoji: "🚀", Message: fmt.Sprintf("Table `%s` created", table)}
+		}
+		if table == "tag" {
+			return models.Result{Emoji: "🏷️", Message: fmt.Sprintf("Table `%s` created", table)}
+		}
+		if table == "task_tag" {
+			return models.Result{Emoji: "🧩", Message: fmt.Sprintf("Table `%s` created", table)}
 		}
 
 		return models.Result{Emoji: "✔", Message: fmt.Sprintf("Table `%s` created", table)}
@@ -210,5 +233,31 @@ func checkTableSchemaStep(tableIndex int) tea.Cmd {
 		}
 
 		return models.Result{Emoji: "✔", Message: fmt.Sprintf("Table `%s` schema matches", table)}
+	}
+}
+
+// seedStatusTableStep shows the status table seeding message
+func seedStatusTableStep() tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(500 * time.Millisecond)
+		return models.Result{Emoji: "🌱", Message: "Table `status` seeded"}
+	}
+}
+
+// verifyStatusTableStep verifies the status table data
+func verifyStatusTableStep() tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(500 * time.Millisecond)
+
+		isValid, err := database.VerifyStatusTableData(database.DatabaseName)
+		if err != nil {
+			return models.Result{Emoji: "❌", Message: fmt.Sprintf("Failed to verify status table data: %v", err)}
+		}
+
+		if isValid {
+			return models.Result{Emoji: "🌱", Message: "Table `status` data verified"}
+		} else {
+			return models.Result{Emoji: "⚠️", Message: "Table `status` data incomplete"}
+		}
 	}
 }

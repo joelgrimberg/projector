@@ -28,7 +28,7 @@ func ValidateDate(dateStr string) (string, error) {
 }
 
 // ValidateTaskInput validates task input data
-func ValidateTaskInput(name string, projectID *int, dueDate string, statusID int) error {
+func ValidateTaskInput(name string, projectID *uint, dueDate string, statusID uint) error {
 	if name == "" {
 		return fmt.Errorf("task name is required")
 	}
