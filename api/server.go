@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"main/database"
+	"github.com/joel/projector/database"
 )
 
 // Server represents the HTTP API server
@@ -26,9 +26,9 @@ func NewServer(port int, dbPath string) *Server {
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	// Set up routes
-	http.HandleFunc("/api/tasks", s.handleTasks)
+	http.HandleFunc("/api/actions", s.handleActions)
 	http.HandleFunc("/api/projects", s.handleProjects)
-	http.HandleFunc("/api/tasks/", s.handleTaskByID)
+	http.HandleFunc("/api/actions/", s.handleActionByID)
 	http.HandleFunc("/api/projects/", s.handleProjectByID)
 
 	// Health check endpoint
@@ -37,11 +37,11 @@ func (s *Server) Start() error {
 	addr := fmt.Sprintf(":%d", s.port)
 	fmt.Printf("🚀 API server starting on port %d...\n", s.port)
 	fmt.Printf("📡 Endpoints available:\n")
-	fmt.Printf("   GET    /api/tasks      - List all tasks\n")
-	fmt.Printf("   PUT    /api/tasks      - Create new task\n")
-	fmt.Printf("   GET    /api/tasks/:id  - Get task by ID\n")
-	fmt.Printf("   PUT    /api/tasks/:id  - Mark task as done\n")
-	fmt.Printf("   DELETE /api/tasks/:id  - Delete task\n")
+	fmt.Printf("   GET    /api/actions      - List all actions\n")
+	fmt.Printf("   PUT    /api/actions      - Create new action\n")
+	fmt.Printf("   GET    /api/actions/:id  - Get action by ID\n")
+	fmt.Printf("   PUT    /api/actions/:id  - Mark action as done\n")
+	fmt.Printf("   DELETE /api/actions/:id  - Delete action\n")
 	fmt.Printf("   GET    /api/projects   - List all projects\n")
 	fmt.Printf("   PUT    /api/projects   - Create new project\n")
 	fmt.Printf("   GET    /api/projects/:id - Get project by ID\n")
@@ -61,30 +61,30 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleTasks handles task-related requests
-func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
+// handleActions handles action-related requests
+func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	switch r.Method {
 	case "GET":
-		tasks, err := database.GetAllTasks(s.dbPath)
+		actions, err := database.GetAllActions(s.dbPath)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error retrieving tasks: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error retrieving actions: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Convert to JSON response
 		response := map[string]interface{}{
 			"success": true,
-			"count":   len(tasks),
-			"tasks":   tasks,
+			"count":   len(actions),
+			"actions": actions,
 		}
 
 		json.NewEncoder(w).Encode(response)
 
 	case "PUT":
 		// Parse request body
-		var taskRequest struct {
+		var actionRequest struct {
 			Name           string `json:"name"`
 			Note           string `json:"note,omitempty"`
 			ProjectID      *uint  `json:"project_id,omitempty"`
@@ -96,40 +96,40 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 			RepeatUntil    string `json:"repeat_until,omitempty"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&taskRequest); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&actionRequest); err != nil {
 			http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
 			return
 		}
 
 		// Validate required fields
-		if taskRequest.Name == "" {
-			http.Error(w, "Task name is required", http.StatusBadRequest)
+		if actionRequest.Name == "" {
+			http.Error(w, "Action name is required", http.StatusBadRequest)
 			return
 		}
 
-		if taskRequest.StatusID == 0 {
-			taskRequest.StatusID = 1 // Default to 'todo' status
+		if actionRequest.StatusID == 0 {
+			actionRequest.StatusID = 1 // Default to 'todo' status
 		}
 
-		// Create the task
-		taskID, err := database.CreateTask(s.dbPath, taskRequest.Name, taskRequest.Note, taskRequest.ProjectID, taskRequest.DueDate, taskRequest.StatusID, taskRequest.RepeatCount, taskRequest.RepeatInterval, taskRequest.RepeatPattern, taskRequest.RepeatUntil, nil)
+		// Create the action
+		actionID, err := database.CreateAction(s.dbPath, actionRequest.Name, actionRequest.Note, actionRequest.ProjectID, actionRequest.DueDate, actionRequest.StatusID, actionRequest.RepeatCount, actionRequest.RepeatInterval, actionRequest.RepeatPattern, actionRequest.RepeatUntil, nil)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error creating task: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error creating action: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		// Get the created task
-		task, err := database.GetTaskByID(s.dbPath, taskID)
+		// Get the created action
+		action, err := database.GetActionByID(s.dbPath, actionID)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error retrieving created task: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error retrieving created action: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		response := map[string]interface{}{
 			"success": true,
-			"message": "Task created successfully",
-			"task_id": taskID,
-			"task":    task,
+			"message": "Action created successfully",
+			"action_id": actionID,
+			"action":    action,
 		}
 
 		w.WriteHeader(http.StatusCreated)
@@ -140,58 +140,58 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleTaskByID handles requests for a specific task
-func (s *Server) handleTaskByID(w http.ResponseWriter, r *http.Request) {
+// handleActionByID handles requests for a specific action
+func (s *Server) handleActionByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	// Extract ID from URL path
 	path := r.URL.Path
-	if len(path) < 12 { // "/api/tasks/" is 12 characters
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+	if len(path) < 13 { // "/api/actions/" is 13 characters
+		http.Error(w, "Invalid action ID", http.StatusBadRequest)
 		return
 	}
 
-	taskIDStr := path[12:] // Remove "/api/tasks/" prefix
-	taskID, err := strconv.ParseUint(taskIDStr, 10, 32)
+	actionIDStr := path[13:] // Remove "/api/actions/" prefix
+	actionID, err := strconv.ParseUint(actionIDStr, 10, 32)
 	if err != nil {
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		http.Error(w, "Invalid action ID", http.StatusBadRequest)
 		return
 	}
-	taskIDUint := uint(taskID)
+	actionIDUint := uint(actionID)
 
 	switch r.Method {
 	case "GET":
-		// Get task by ID
-		task, err := database.GetTaskByID(s.dbPath, taskIDUint)
+		// Get action by ID
+		action, err := database.GetActionByID(s.dbPath, actionIDUint)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error retrieving task: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error retrieving action: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		if task == nil {
-			http.Error(w, "Task not found", http.StatusNotFound)
+		if action == nil {
+			http.Error(w, "Action not found", http.StatusNotFound)
 			return
 		}
 
 		response := map[string]interface{}{
 			"success": true,
-			"task":    task,
+			"action":    action,
 		}
 
 		json.NewEncoder(w).Encode(response)
 
 	case "DELETE":
-		// Delete the task
-		err := database.DeleteTask(s.dbPath, taskIDUint)
+		// Delete the action
+		err := database.DeleteAction(s.dbPath, actionIDUint)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error deleting task: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error deleting action: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		response := map[string]interface{}{
 			"success": true,
-			"message": "Task deleted successfully",
-			"task_id": taskIDUint,
+			"message": "Action deleted successfully",
+			"action_id": actionIDUint,
 		}
 
 		json.NewEncoder(w).Encode(response)
@@ -209,17 +209,17 @@ func (s *Server) handleTaskByID(w http.ResponseWriter, r *http.Request) {
 
 		switch actionRequest.Action {
 		case "done":
-			// Mark task as done and handle repetition
-			err := database.MarkTaskAsDone(s.dbPath, taskIDUint)
+			// Mark action as done and handle repetition
+			err := database.MarkActionAsDone(s.dbPath, actionIDUint)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Error marking task as done: %v", err), http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Error marking action as done: %v", err), http.StatusInternalServerError)
 				return
 			}
 
 			response := map[string]interface{}{
 				"success": true,
-				"message": "Task marked as done",
-				"task_id": taskIDUint,
+				"message": "Action marked as done",
+				"action_id": actionIDUint,
 			}
 
 			json.NewEncoder(w).Encode(response)

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"main/database"
-	"main/models"
+	"github.com/joel/projector/database"
+	"github.com/joel/projector/models"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -183,7 +183,7 @@ func createTableStep(tableIndex int) tea.Cmd {
 	return func() tea.Msg {
 		time.Sleep(1 * time.Second)
 
-		tables := []string{"project", "status", "task", "tag", "task_tag"}
+		tables := []string{"project", "status", "action", "tag", "action_tag"}
 		table := tables[tableIndex]
 
 		err := database.CreateTable(database.DatabaseName, table)
@@ -196,14 +196,14 @@ func createTableStep(tableIndex int) tea.Cmd {
 			return models.Result{Emoji: "📝", Message: "Table `status` created"}
 		}
 
-		// Use 🚀 for project and task tables, 🏷️ for tag table, 🧩 for task_tag table
-		if table == "project" || table == "task" {
+		// Use 🚀 for project and action tables, 🏷️ for tag table, 🧩 for action_tag table
+		if table == "project" || table == "action" {
 			return models.Result{Emoji: "🚀", Message: fmt.Sprintf("Table `%s` created", table)}
 		}
 		if table == "tag" {
 			return models.Result{Emoji: "🏷️", Message: fmt.Sprintf("Table `%s` created", table)}
 		}
-		if table == "task_tag" {
+		if table == "action_tag" {
 			return models.Result{Emoji: "🧩", Message: fmt.Sprintf("Table `%s` created", table)}
 		}
 
@@ -216,7 +216,7 @@ func checkTableSchemaStep(tableIndex int) tea.Cmd {
 	return func() tea.Msg {
 		time.Sleep(1 * time.Second)
 
-		tables := []string{"project", "status", "task", "tag", "task_tag"}
+		tables := []string{"project", "status", "action", "tag", "action_tag"}
 		table := tables[tableIndex]
 
 		err := database.CheckTableSchema(database.DatabaseName, table)

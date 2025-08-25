@@ -1,0 +1,27 @@
+builds:
+  - env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+    binary: projector
+
+archives:
+  - format: tar.gz
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+
+checksum:
+  name_template: 'checksums.txt'
+
+brews:
+  - name: projector
+    repository:
+      owner: joel
+      name: homebrew-tap
+    homepage: "https://github.com/joel/projector"
+    description: "A CLI application for project and action management"

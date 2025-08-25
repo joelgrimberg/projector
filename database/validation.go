@@ -27,14 +27,14 @@ func ValidateDate(dateStr string) (string, error) {
 	return date.Format("2006-01-02"), nil
 }
 
-// ValidateTaskInput validates task input data
-func ValidateTaskInput(name string, projectID *uint, dueDate string, statusID uint) error {
+// ValidateActionInput validates action input data
+func ValidateActionInput(name string, projectID *uint, dueDate string, statusID uint) error {
 	if name == "" {
-		return fmt.Errorf("task name is required")
+		return fmt.Errorf("action name is required")
 	}
 
 	if len(name) > 255 {
-		return fmt.Errorf("task name is too long (max 255 characters)")
+		return fmt.Errorf("action name is too long (max 255 characters)")
 	}
 
 	if statusID <= 0 {

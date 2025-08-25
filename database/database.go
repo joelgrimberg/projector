@@ -55,9 +55,9 @@ func CreateTable(dbPath, tableName string) error {
 			name TEXT NOT NULL,
 			due_date DATE
 		);`
-	case "task":
+	case "action":
 		createTableSQL = `
-		CREATE TABLE IF NOT EXISTS task (
+		CREATE TABLE IF NOT EXISTS action (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			project_id INTEGER,
 			name TEXT NOT NULL,
@@ -68,10 +68,10 @@ func CreateTable(dbPath, tableName string) error {
 			repeat_interval TEXT,
 			repeat_pattern TEXT,
 			repeat_until DATE,
-			parent_task_id INTEGER,
+			parent_action_id INTEGER,
 			FOREIGN KEY (project_id) REFERENCES project (id) ON DELETE SET NULL,
 			FOREIGN KEY (status_id) REFERENCES status (id),
-			FOREIGN KEY (parent_task_id) REFERENCES task (id) ON DELETE SET NULL
+			FOREIGN KEY (parent_action_id) REFERENCES action (id) ON DELETE SET NULL
 		);`
 	case "tag":
 		createTableSQL = `
@@ -79,13 +79,13 @@ func CreateTable(dbPath, tableName string) error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE
 		);`
-	case "task_tag":
+	case "action_tag":
 		createTableSQL = `
-		CREATE TABLE IF NOT EXISTS task_tag (
-			task_id INTEGER NOT NULL,
+		CREATE TABLE IF NOT EXISTS action_tag (
+			action_id INTEGER NOT NULL,
 			tag_id INTEGER NOT NULL,
-			PRIMARY KEY (task_id, tag_id),
-			FOREIGN KEY (task_id) REFERENCES task (id) ON DELETE CASCADE,
+			PRIMARY KEY (action_id, tag_id),
+			FOREIGN KEY (action_id) REFERENCES action (id) ON DELETE CASCADE,
 			FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE
 		);`
 	case "status":
@@ -165,7 +165,7 @@ func CheckTableSchema(dbPath, tableName string) error {
 			"name TEXT",
 			"due_date DATE",
 		},
-		"task": {
+		"action": {
 			"id INTEGER",
 			"project_id INTEGER",
 			"name TEXT",
@@ -176,14 +176,14 @@ func CheckTableSchema(dbPath, tableName string) error {
 			"repeat_interval TEXT",
 			"repeat_pattern TEXT",
 			"repeat_until DATE",
-			"parent_task_id INTEGER",
+			"parent_action_id INTEGER",
 		},
 		"tag": {
 			"id INTEGER",
 			"name TEXT",
 		},
-		"task_tag": {
-			"task_id INTEGER",
+		"action_tag": {
+			"action_id INTEGER",
 			"tag_id INTEGER",
 		},
 		"status": {
@@ -211,9 +211,9 @@ func CheckTableSchema(dbPath, tableName string) error {
 func GetExpectedSchema(tableName string) string {
 	expectedSchemas := map[string]string{
 		"project":  "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, due_date DATE",
-		"task":     "id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER, name TEXT NOT NULL, note TEXT, due_date DATE, status_id INTEGER NOT NULL, repeat_count INTEGER DEFAULT 0, repeat_interval TEXT, repeat_pattern TEXT, repeat_until DATE, parent_task_id INTEGER",
+		"action":     "id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER, name TEXT NOT NULL, note TEXT, due_date DATE, status_id INTEGER NOT NULL, repeat_count INTEGER DEFAULT 0, repeat_interval TEXT, repeat_pattern TEXT, repeat_until DATE, parent_action_id INTEGER",
 		"tag":      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE",
-		"task_tag": "task_id INTEGER NOT NULL, tag_id INTEGER NOT NULL",
+		"action_tag": "action_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY (action_id, tag_id), FOREIGN KEY (action_id) REFERENCES action (id) ON DELETE CASCADE, FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE",
 		"status":   "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE",
 	}
 

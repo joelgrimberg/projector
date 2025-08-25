@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"main/api"
-	"main/database"
-	"main/ui"
+	"github.com/joel/projector/api"
+	"github.com/joel/projector/database"
+	"github.com/joel/projector/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -26,9 +26,13 @@ func main() {
 		Short: "A CLI application for project and task management",
 		Run: func(cmd *cobra.Command, args []string) {
 			// Default behavior when no subcommand is provided
-			startAPIServer()
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			startAPIServer(verbose)
 		},
 	}
+
+	// Add verbose flag
+	rootCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	// Add the `init` command
 	rootCmd.AddCommand(initCmd())
@@ -58,17 +62,24 @@ func initCmd() *cobra.Command {
 }
 
 func migrateCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "migrate",
-		Short: "Migrate database schema to add note and repeat fields to tasks",
+		Short: "Migrate database schema to add note and repeat fields to actions",
 		Run: func(cmd *cobra.Command, args []string) {
-			runMigration()
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			runMigration(verbose)
 		},
 	}
+	
+	// Add verbose flag to migrate command
+	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
+	return cmd
 }
 
-func runMigration() {
-	fmt.Println("🔄 Starting database migration...")
+func runMigration(verbose bool) {
+	if verbose {
+		fmt.Println("🔄 Starting database migration...")
+	}
 
 	// Check if database exists
 	if !database.DatabaseExists(database.DatabaseName) {
@@ -84,47 +95,143 @@ func runMigration() {
 	}
 	defer db.Close()
 
-	// List of columns to add
+	// First, check if we need to rename the task table to action table
+	var tableExists int
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='task'").Scan(&tableExists)
+	if err != nil {
+		fmt.Printf("❌ Error checking for task table: %v\n", err)
+		return
+	}
+
+	if tableExists > 0 {
+		if verbose {
+			fmt.Println("🔄 Renaming 'task' table to 'action' table...")
+		}
+		
+		// Rename the task table to action table
+		_, err = db.Exec("ALTER TABLE task RENAME TO action")
+		if err != nil {
+			fmt.Printf("❌ Failed to rename task table: %v\n", err)
+			return
+		}
+		if verbose {
+			fmt.Println("✅ Table renamed successfully")
+		}
+
+		// Rename the task_tag table to action_tag table
+		err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='task_tag'").Scan(&tableExists)
+		if err == nil && tableExists > 0 {
+			if verbose {
+				fmt.Println("🔄 Renaming 'task_tag' table to 'action_tag' table...")
+			}
+			_, err = db.Exec("ALTER TABLE task_tag RENAME TO action_tag")
+			if err != nil {
+				fmt.Printf("❌ Failed to rename task_tag table: %v\n", err)
+				return
+			}
+			if verbose {
+				fmt.Println("✅ task_tag table renamed successfully")
+			}
+			
+			// Rename the task_id column to action_id in the action_tag table
+			if verbose {
+				fmt.Println("🔄 Renaming 'task_id' column to 'action_id' in action_tag table...")
+			}
+			_, err = db.Exec("ALTER TABLE action_tag RENAME COLUMN task_id TO action_id")
+			if err != nil {
+				fmt.Printf("❌ Failed to rename task_id column: %v\n", err)
+				return
+			}
+			if verbose {
+				fmt.Println("✅ Column renamed successfully")
+			}
+		}
+
+		// Rename the parent_task_id column to parent_action_id
+		if verbose {
+			fmt.Println("🔄 Renaming 'parent_task_id' column to 'parent_action_id'...")
+		}
+		_, err = db.Exec("ALTER TABLE action RENAME COLUMN parent_task_id TO parent_action_id")
+		if err != nil {
+			fmt.Printf("❌ Failed to rename parent_task_id column: %v\n", err)
+			return
+		}
+		if verbose {
+			fmt.Println("✅ Column renamed successfully")
+		}
+	}
+
+	// Always check and fix the action_tag table column names if needed
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='action_tag'").Scan(&tableExists)
+	if err == nil && tableExists > 0 {
+		// Check if the action_tag table still has the old task_id column
+		var columnExists int
+		err = db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('action_tag') WHERE name='task_id'").Scan(&columnExists)
+		if err == nil && columnExists > 0 {
+			if verbose {
+				fmt.Println("🔄 Fixing 'task_id' column name to 'action_id' in action_tag table...")
+			}
+			_, err = db.Exec("ALTER TABLE action_tag RENAME COLUMN task_id TO action_id")
+			if err != nil {
+				fmt.Printf("❌ Failed to rename task_id column: %v\n", err)
+			} else {
+				if verbose {
+					fmt.Println("✅ Column renamed successfully")
+				}
+			}
+		}
+	}
+
+	// List of columns to add (these will be skipped if they already exist)
 	columns := []struct {
 		name    string
 		sql     string
 		display string
 	}{
-		{"note", "ALTER TABLE task ADD COLUMN note TEXT", "note"},
-		{"repeat_count", "ALTER TABLE task ADD COLUMN repeat_count INTEGER DEFAULT 0", "repeat_count"},
-		{"repeat_interval", "ALTER TABLE task ADD COLUMN repeat_interval TEXT", "repeat_interval"},
-		{"repeat_pattern", "ALTER TABLE task ADD COLUMN repeat_pattern TEXT", "repeat_pattern"},
-		{"repeat_until", "ALTER TABLE task ADD COLUMN repeat_until DATE", "repeat_until"},
-		{"parent_task_id", "ALTER TABLE task ADD COLUMN parent_task_id INTEGER", "parent_task_id"},
+		{"note", "ALTER TABLE action ADD COLUMN note TEXT", "note"},
+		{"repeat_count", "ALTER TABLE action ADD COLUMN repeat_count INTEGER DEFAULT 0", "repeat_count"},
+		{"repeat_interval", "ALTER TABLE action ADD COLUMN repeat_interval TEXT", "repeat_interval"},
+		{"repeat_pattern", "ALTER TABLE action ADD COLUMN repeat_pattern TEXT", "repeat_pattern"},
+		{"repeat_until", "ALTER TABLE action ADD COLUMN repeat_until DATE", "repeat_until"},
+		{"parent_action_id", "ALTER TABLE action ADD COLUMN parent_action_id INTEGER", "parent_action_id"},
 	}
 
-	// Add each column if it doesn't exist
-	for _, col := range columns {
+	// Add missing columns
+	for _, column := range columns {
+		// Check if column already exists
 		var columnExists int
-		err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('task') WHERE name='%s'", col.name)).Scan(&columnExists)
+		err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('action') WHERE name='%s'", column.name)).Scan(&columnExists)
 		if err != nil {
-			fmt.Printf("❌ Failed to check %s column existence: %v\n", col.name, err)
+			fmt.Printf("⚠️ Could not check if column '%s' exists: %v\n", column.name, err)
 			continue
 		}
 
 		if columnExists == 0 {
-			fmt.Printf("📝 Adding %s column to task table...\n", col.display)
-			_, err = db.Exec(col.sql)
+			if verbose {
+				fmt.Printf("📝 Adding %s column to action table...\n", column.display)
+			}
+			_, err = db.Exec(column.sql)
 			if err != nil {
-				fmt.Printf("❌ Failed to add %s column: %v\n", col.display, err)
+				fmt.Printf("❌ Failed to add %s column: %v\n", column.display, err)
 				continue
 			}
-			fmt.Printf("✅ Successfully added %s column\n", col.display)
+			if verbose {
+				fmt.Printf("✅ Successfully added %s column\n", column.display)
+			}
 		} else {
-			fmt.Printf("✅ %s column already exists\n", col.display)
+			if verbose {
+				fmt.Printf("✅ %s column already exists\n", column.display)
+			}
 		}
 	}
 
-	fmt.Println("🔄 Migration completed successfully!")
+	if verbose {
+		fmt.Println("🔄 Migration completed successfully!")
+	}
 }
 
-func startAPIServer() {
-	fmt.Println("Projector - Project and Task Management")
+func startAPIServer(verbose bool) {
+	fmt.Println("Projector - Project and Action Management")
 	fmt.Println("======================================")
 	fmt.Println()
 
@@ -134,8 +241,14 @@ func startAPIServer() {
 		return
 	}
 
-	// Display initial tasks
-	displayTasks()
+	// Run migration to ensure database schema is up to date
+	if verbose {
+		fmt.Println("🔄 Checking database schema...")
+	}
+	runMigration(verbose)
+
+	// Display initial actions
+	displayActions()
 
 	// Start API server in a goroutine
 	server := api.NewServer(8080, database.DatabaseName)
@@ -165,55 +278,54 @@ func startAPIServer() {
 	fmt.Println("\n👋 Shutting down Projector...")
 }
 
-func displayTasks() {
-	// Get all tasks
-	tasks, err := database.GetAllTasks(database.DatabaseName)
+func displayActions() {
+	// Get all actions
+	actions, err := database.GetAllActions(database.DatabaseName)
 	if err != nil {
-		fmt.Printf("❌ Error retrieving tasks: %v\n", err)
+		fmt.Printf("❌ Error retrieving actions: %v\n", err)
 		return
 	}
 
-	if len(tasks) == 0 {
-		fmt.Println("📝 No tasks found. Create some tasks to get started!")
-		fmt.Println("Use 'projector init' to initialize the database if needed.")
+	if len(actions) == 0 {
+		fmt.Println("📝 No actions found. Create some actions to get started!")
 		return
 	}
 
-	fmt.Printf("📋 Found %d task(s):\n\n", len(tasks))
+	fmt.Printf("📋 Found %d action(s):\n\n", len(actions))
 
-	// Display tasks in a nice format
-	for _, task := range tasks {
-		fmt.Printf("  %d. %s\n", task.ID, task.Name)
+	// Display actions in a nice format
+	for _, action := range actions {
+		fmt.Printf("  %d. %s\n", action.ID, action.Name)
 
 		// Show note if available
-		if task.Note.Valid && task.Note.String != "" {
-			fmt.Printf("     📝 Note: %s\n", task.Note.String)
+		if action.Note.Valid && action.Note.String != "" {
+			fmt.Printf("     📝 Note: %s\n", action.Note.String)
 		}
 
 		// Show project if available
-		if task.ProjectName.Valid {
-			fmt.Printf("     📁 Project: %s\n", task.ProjectName.String)
+		if action.ProjectName.Valid {
+			fmt.Printf("     📁 Project: %s\n", action.ProjectName.String)
 		}
 
 		// Show due date if available
-		if task.DueDate.Valid {
-			fmt.Printf("     📅 Due: %s\n", task.DueDate.String)
+		if action.DueDate.Valid {
+			fmt.Printf("     📅 Due: %s\n", action.DueDate.String)
 		}
 
 		// Show repeat information if available
-		if task.RepeatCount > 0 && task.RepeatInterval.Valid {
-			fmt.Printf("     🔄 Repeat: %d times every %s", task.RepeatCount, task.RepeatInterval.String)
-			if task.RepeatPattern.Valid && task.RepeatPattern.String != "" {
-				fmt.Printf(" on %s", task.RepeatPattern.String)
+		if action.RepeatCount > 0 && action.RepeatInterval.Valid {
+			fmt.Printf("     🔄 Repeat: %d times every %s", action.RepeatCount, action.RepeatInterval.String)
+			if action.RepeatPattern.Valid && action.RepeatPattern.String != "" {
+				fmt.Printf(" on %s", action.RepeatPattern.String)
 			}
-			if task.RepeatUntil.Valid {
-				fmt.Printf(" until %s", task.RepeatUntil.String)
+			if action.RepeatUntil.Valid {
+				fmt.Printf(" until %s", action.RepeatUntil.String)
 			}
 			fmt.Println()
 		}
 
 		// Show status
-		fmt.Printf("     🏷️  Status: %s\n", task.StatusName)
+		fmt.Printf("     🏷️  Status: %s\n", action.StatusName)
 		fmt.Println()
 	}
 }
