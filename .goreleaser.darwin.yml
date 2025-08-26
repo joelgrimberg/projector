@@ -26,3 +26,6 @@ homebrew_casks:
       name: homebrew-tap
     homepage: "https://github.com/joelgrimberg/projector"
     description: "A CLI application for project and action management"
+
+release:
+  mode: replace
