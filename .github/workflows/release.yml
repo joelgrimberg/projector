@@ -207,8 +207,16 @@ jobs:
           done
       - name: Generate Homebrew formula
         run: |
+          set -euo pipefail
+          TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
+          
+          MAC_AMD_SHA=$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | awk '{print $1}')
+          MAC_ARM_SHA=$(shasum -a 256 dist/projector_darwin_arm64.tar.gz | awk '{print $1}')
+          LINUX_AMD_SHA=$(shasum -a 256 dist/projector_linux_amd64.tar.gz | awk '{print $1}')
+          LINUX_ARM_SHA=$(shasum -a 256 dist/projector_linux_arm64.tar.gz | awk '{print $1}')
+          
           mkdir -p dist/homebrew/Formula
-          cat > dist/homebrew/Formula/projector-cli.rb << 'EOF'
+          cat > dist/homebrew/Formula/projector-cli.rb << EOF
           class ProjectorCli < Formula
             desc "A CLI application for project and action management"
             homepage "https://github.com/joelgrimberg/projector"
@@ -217,21 +225,21 @@ jobs:
             
             on_macos do
               if Hardware::CPU.arm?
-                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_darwin_arm64.tar.gz"
-                sha256 "$(shasum -a 256 dist/projector_darwin_arm64.tar.gz | cut -d' ' -f1)"
+                url "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_darwin_arm64.tar.gz"
+                sha256 "${MAC_ARM_SHA}"
               else
-                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_darwin_amd64.tar.gz"
-                sha256 "$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | cut -d' ' -f1)"
+                url "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_darwin_amd64.tar.gz"
+                sha256 "${MAC_AMD_SHA}"
               end
             end
             
             on_linux do
               if Hardware::CPU.arm?
-                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_linux_arm64.tar.gz"
-                sha256 "$(shasum -a 256 dist/projector_linux_arm64.tar.gz | cut -d' ' -f1)"
+                url "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_linux_arm64.tar.gz"
+                sha256 "${LINUX_ARM_SHA}"
               else
-                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_linux_amd64.tar.gz"
-                sha256 "$(shasum -a 256 dist/projector_linux_amd64.tar.gz | cut -d' ' -f1)"
+                url "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_linux_amd64.tar.gz"
+                sha256 "${LINUX_AMD_SHA}"
               end
             end
             
