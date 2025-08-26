@@ -77,6 +77,24 @@ jobs:
           cd dist
           shasum -a 256 *.tar.gz > checksums_linux.txt
           cd ..
+      - name: Upload Linux binaries to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
+          asset_path: ./dist/projector_linux_amd64.tar.gz
+          asset_name: projector_linux_amd64.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload Linux ARM64 binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
+          asset_path: ./dist/projector_linux_arm64.tar.gz
+          asset_name: projector_linux_arm64.tar.gz
+          asset_content_type: application/gzip
 
   darwin:
     runs-on: macos-latest
@@ -107,6 +125,24 @@ jobs:
           cd dist
           shasum -a 256 *.tar.gz > checksums_darwin.txt
           cd ..
+      - name: Upload macOS AMD64 binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
+          asset_path: ./dist/projector_darwin_amd64.tar.gz
+          asset_name: projector_darwin_amd64.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload macOS ARM64 binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
+          asset_path: ./dist/projector_darwin_arm64.tar.gz
+          asset_name: projector_darwin_arm64.tar.gz
+          asset_content_type: application/gzip
       - name: Generate Homebrew formula
         run: |
           mkdir -p dist/homebrew/Formula
@@ -132,8 +168,8 @@ jobs:
                 url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_linux_arm64.tar.gz"
                 sha256 "$(shasum -a 256 dist/projector_linux_arm64.tar.gz | cut -d' ' -f1)"
               else
-                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_linux_arm64.tar.gz"
-                sha256 "$(shasum -a 256 dist/projector_linux_arm64.tar.gz | cut -d' ' -f1)"
+                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_linux_amd64.tar.gz"
+                sha256 "$(shasum -a 256 dist/projector_linux_amd64.tar.gz | cut -d' ' -f1)"
               end
             end
             
