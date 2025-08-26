@@ -1,3 +1,11 @@
+## [0.2.1](https://github.com/joelgrimberg/projector/compare/v0.2.0...v0.2.1) (2025-08-26)
+
+
+### Bug Fixes
+
+* add explicit permissions for GITHUB_TOKEN to write to repository ([bda8bda](https://github.com/joelgrimberg/projector/commit/bda8bda29e06cd04d0b6f805c733ce53ea0042a8))
+* use correct tokens - GITHUB_TOKEN for main repo, HOMEBREW_TAP_TOKEN for tap only ([28a3653](https://github.com/joelgrimberg/projector/commit/28a3653c5caff0ba39332ce17ebc7f81754e000d))
+
 # [0.2.0](https://github.com/joelgrimberg/projector/compare/v0.1.9...v0.2.0) (2025-08-26)
 
 
