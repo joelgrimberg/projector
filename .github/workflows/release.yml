@@ -53,4 +53,7 @@ jobs:
           version: "~> v2"
           args: release --clean --config .goreleaser.darwin.yml
         env:
+          # default token for releasing in this repo
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with write access to joelgrimberg/homebrew-tap for cask push
+          GORELEASER_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
