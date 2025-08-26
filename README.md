@@ -15,11 +15,13 @@ A CLI application for project and action management with a modern terminal UI.
 ## Installation
 
 ### Via Homebrew (Recommended)
+
 ```bash
 brew install joelgrimberg/tap/projector
 ```
 
 ### From Source
+
 ```bash
 git clone https://github.com/joelgrimberg/projector.git
 cd projector
@@ -29,11 +31,13 @@ go install
 ## Quick Start
 
 1. **Initialize the database**:
+
    ```bash
    projector init
    ```
 
 2. **Start the application**:
+
    ```bash
    projector
    ```
@@ -69,20 +73,24 @@ go install
 
 ## Configuration
 
-The application uses SQLite for data storage. The database file is created automatically in the current directory as `database.sqlite`.
+The application uses SQLite for data storage. The database file is created
+automatically in the current directory as `database.sqlite`.
 
 ## Development
 
 ### Prerequisites
+
 - Go 1.24.5 or later
 - SQLite3
 
 ### Building
+
 ```bash
 go build -o projector
 ```
 
 ### Running Tests
+
 ```bash
 go test ./...
 ```
