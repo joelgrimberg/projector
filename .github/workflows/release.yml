@@ -157,7 +157,7 @@ jobs:
 
   darwin:
     runs-on: macos-latest
-    needs: semantic-release
+    needs: [semantic-release, linux]
     if: needs.semantic-release.outputs.new_release_version != ''
     steps:
       - name: Checkout
@@ -247,6 +247,18 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
+          
+          # Ensure Linux tarballs are available locally to compute checksums
+          mkdir -p dist
+          echo "Downloading Linux tarballs for checksum computation..."
+          curl -fSL --retry 5 --retry-delay 2 -o dist/projector_linux_amd64.tar.gz "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_linux_amd64.tar.gz"
+          curl -fSL --retry 5 --retry-delay 2 -o dist/projector_linux_arm64.tar.gz "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_linux_arm64.tar.gz"
+          
+          if [ ! -f dist/projector_linux_amd64.tar.gz ] || [ ! -f dist/projector_linux_arm64.tar.gz ]; then
+            echo "Linux tarballs not found after download attempts; aborting formula generation." >&2
+            ls -lah dist || true
+            exit 1
+          fi
           
           MAC_AMD_SHA=$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | awk '{print $1}')
           MAC_ARM_SHA=$(shasum -a 256 dist/projector_darwin_arm64.tar.gz | awk '{print $1}')
