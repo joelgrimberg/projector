@@ -1,3 +1,10 @@
+## [0.2.2](https://github.com/joelgrimberg/projector/compare/v0.2.1...v0.2.2) (2025-08-26)
+
+
+### Bug Fixes
+
+* enable Git credentials and configure Git identity for semantic-release ([c7d94d5](https://github.com/joelgrimberg/projector/commit/c7d94d5b5ce3d622b2e56750fc20eb65e15d58df))
+
 ## [0.2.1](https://github.com/joelgrimberg/projector/compare/v0.2.0...v0.2.1) (2025-08-26)
 
 
