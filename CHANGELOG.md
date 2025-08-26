@@ -1,3 +1,15 @@
+# [0.2.0](https://github.com/joelgrimberg/projector/compare/v0.1.9...v0.2.0) (2025-08-26)
+
+
+### Bug Fixes
+
+* ensure GoReleaser runs after semantic-release with proper version handling ([abeed6e](https://github.com/joelgrimberg/projector/commit/abeed6e668bd04037186667b63ca219cd9299df2))
+
+
+### Features
+
+* make ci faster ([a030c76](https://github.com/joelgrimberg/projector/commit/a030c76797f965c58d8521a8e38b925f192c6972))
+
 ## [0.1.9](https://github.com/joelgrimberg/projector/compare/v0.1.8...v0.1.9) (2025-08-26)
 
 
