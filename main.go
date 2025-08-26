@@ -82,13 +82,13 @@ func runMigration(verbose bool) {
 	}
 
 	// Check if database exists
-	if !database.DatabaseExists(database.DatabaseName) {
+	if !database.DatabaseExists(database.GetDatabasePath()) {
 		fmt.Println("❌ Database not found. Please run 'projector init' first.")
 		return
 	}
 
 	// Open database
-	db, err := sql.Open("sqlite3", database.DatabaseName)
+	db, err := sql.Open("sqlite3", database.GetDatabasePath())
 	if err != nil {
 		fmt.Printf("❌ Failed to open database: %v\n", err)
 		return
@@ -236,7 +236,7 @@ func startAPIServer(verbose bool) {
 	fmt.Println()
 
 	// Check if database exists
-	if !database.DatabaseExists(database.DatabaseName) {
+	if !database.DatabaseExists(database.GetDatabasePath()) {
 		fmt.Println("❌ Database not found. Please run 'projector init' first.")
 		return
 	}
@@ -251,7 +251,7 @@ func startAPIServer(verbose bool) {
 	displayActions()
 
 	// Start API server in a goroutine
-	server := api.NewServer(8080, database.DatabaseName)
+	server := api.NewServer(8080, database.GetDatabasePath())
 	go func() {
 		if err := server.Start(); err != nil {
 			fmt.Printf("❌ API server error: %v\n", err)
@@ -280,7 +280,7 @@ func startAPIServer(verbose bool) {
 
 func displayActions() {
 	// Get all actions
-	actions, err := database.GetAllActions(database.DatabaseName)
+	actions, err := database.GetAllActions(database.GetDatabasePath())
 	if err != nil {
 		fmt.Printf("❌ Error retrieving actions: %v\n", err)
 		return

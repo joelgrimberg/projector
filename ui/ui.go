@@ -164,12 +164,12 @@ func runInitStep() tea.Cmd {
 		time.Sleep(1 * time.Second)
 
 		// Check if database exists
-		if database.DatabaseExists(database.DatabaseName) {
+		if database.DatabaseExists(database.GetDatabasePath()) {
 			// Database exists, check schemas instead of creating
 			return models.Result{Emoji: "⚠️", Message: "Database already exists, checking schemas..."}
 		} else {
 			// Database doesn't exist, create it
-			err := database.CreateDatabase(database.DatabaseName)
+			err := database.CreateDatabase(database.GetDatabasePath())
 			if err != nil {
 				return models.Result{Emoji: "❌", Message: "Failed to create database"}
 			}
@@ -186,7 +186,7 @@ func createTableStep(tableIndex int) tea.Cmd {
 		tables := []string{"project", "status", "action", "tag", "action_tag"}
 		table := tables[tableIndex]
 
-		err := database.CreateTable(database.DatabaseName, table)
+		err := database.CreateTable(database.GetDatabasePath(), table)
 		if err != nil {
 			return models.Result{Emoji: "❌", Message: fmt.Sprintf("Failed to create table `%s`", table)}
 		}
@@ -219,11 +219,11 @@ func checkTableSchemaStep(tableIndex int) tea.Cmd {
 		tables := []string{"project", "status", "action", "tag", "action_tag"}
 		table := tables[tableIndex]
 
-		err := database.CheckTableSchema(database.DatabaseName, table)
+		err := database.CheckTableSchema(database.GetDatabasePath(), table)
 		if err != nil {
 			// Get both schemas for comparison
 			expectedSchema := database.GetExpectedSchema(table)
-			actualSchema := database.GetActualSchema(database.DatabaseName, table)
+			actualSchema := database.GetActualSchema(database.GetDatabasePath(), table)
 
 			return models.Result{
 				Emoji: "❌",
@@ -249,7 +249,7 @@ func verifyStatusTableStep() tea.Cmd {
 	return func() tea.Msg {
 		time.Sleep(500 * time.Millisecond)
 
-		isValid, err := database.VerifyStatusTableData(database.DatabaseName)
+		isValid, err := database.VerifyStatusTableData(database.GetDatabasePath())
 		if err != nil {
 			return models.Result{Emoji: "❌", Message: fmt.Sprintf("Failed to verify status table data: %v", err)}
 		}

@@ -4,11 +4,38 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const DatabaseName = "database.sqlite"
+const DatabaseName = "projector.db"
+
+// GetDatabasePath returns the proper database path in ~/.local/share/projector/
+func GetDatabasePath() string {
+	// Check for environment variable override
+	if envPath := os.Getenv("PROJECTOR_DB_PATH"); envPath != "" {
+		return envPath
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback to current directory
+		return DatabaseName
+	}
+
+	// Use ~/.local/share/projector/ for all platforms
+	dbDir := filepath.Join(homeDir, ".local", "share", "projector")
+	
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		// Fallback to current directory
+		return DatabaseName
+	}
+
+	return filepath.Join(dbDir, DatabaseName)
+}
 
 // CreateDatabase creates a new SQLite database file
 func CreateDatabase(dbPath string) error {
