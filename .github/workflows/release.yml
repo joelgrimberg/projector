@@ -121,23 +121,48 @@ jobs:
           cd dist
           shasum -a 256 *.tar.gz > checksums_darwin.txt
           cd ..
-      - name: Generate Homebrew cask
+      - name: Generate Homebrew formula
+        if: steps.semantic.outputs.new_release_version != ''
         run: |
-          mkdir -p dist/homebrew/Casks
-          cat > dist/homebrew/Casks/projector.rb << 'EOF'
-          cask "projector" do
-            version "${{ needs.semantic-release.outputs.new_release_version }}"
-            sha256 "$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | cut -d' ' -f1)"
-            
-            url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_darwin_amd64.tar.gz"
-            name "Projector"
+          mkdir -p dist/homebrew/Formula
+          cat > dist/homebrew/Formula/projector.rb << 'EOF'
+          class Projector < Formula
             desc "A CLI application for project and action management"
             homepage "https://github.com/joelgrimberg/projector"
+            version "${{ steps.semantic.outputs.new_release_version }}"
+            license "MIT"
             
-            binary "projector"
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_darwin_arm64.tar.gz"
+                sha256 "$(shasum -a 256 dist/projector_darwin_arm64.tar.gz | cut -d' ' -f1)"
+              else
+                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_darwin_amd64.tar.gz"
+                sha256 "$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | cut -d' ' -f1)"
+              end
+            end
+            
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_linux_arm64.tar.gz"
+                sha256 "$(shasum -a 256 dist/projector_linux_arm64.tar.gz | cut -d' ' -f1)"
+              else
+                url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_linux_amd64.tar.gz"
+                sha256 "$(shasum -a 256 dist/projector_linux_amd64.tar.gz | cut -d' ' -f1)"
+              end
+            end
+            
+            def install
+              bin.install "projector"
+            end
+            
+            test do
+              system "#{bin}/projector", "--version"
+            end
           end
           EOF
-      - name: Push Homebrew cask to tap
+      - name: Push Homebrew formula to tap
+        if: steps.semantic.outputs.new_release_version != ''
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
@@ -147,14 +172,14 @@ jobs:
           rm -rf tap
           git clone https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git tap
           
-          mkdir -p tap/Casks
-          cp dist/homebrew/Casks/projector.rb tap/Casks/projector.rb
+          mkdir -p tap/Formula
+          cp dist/homebrew/Formula/projector.rb tap/Formula/projector.rb
           
           cd tap
-          git add Casks/projector.rb
+          git add Formula/projector.rb
           if git diff --cached --quiet; then
-            echo "No cask changes to commit."
+            echo "No formula changes to commit."
           else
-            git commit -m "Update projector cask for ${{ needs.semantic-release.outputs.new_release_version }}"
+            git commit -m "Update projector formula for ${{ steps.semantic.outputs.new_release_version }}"
             git push https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git HEAD:main
           fi
