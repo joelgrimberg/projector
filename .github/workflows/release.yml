@@ -34,7 +34,7 @@ jobs:
             @semantic-release/exec
             @semantic-release/changelog
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Debug Output
         run: |
           echo "Semantic release outputs:"
@@ -44,7 +44,7 @@ jobs:
       - name: Run GoReleaser (Linux)
         if: steps.semantic.outputs.new_release_version != ''
         env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           curl -sL https://git.io/goreleaser | bash
 
@@ -68,7 +68,7 @@ jobs:
             @semantic-release/exec
             @semantic-release/changelog
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Debug Output
         run: |
           echo "Semantic release outputs:"
