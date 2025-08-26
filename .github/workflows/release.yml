@@ -11,12 +11,38 @@ permissions:
   pull-requests: write
 
 jobs:
-  linux:
+  semantic-release:
     runs-on: ubuntu-latest
-    environment:
-      name: Release
     outputs:
       new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      releases_created: ${{ steps.semantic.outputs.releases_created }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          extra_plugins: |
+            @semantic-release/git
+            @semantic-release/exec
+            @semantic-release/changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Debug Output
+        run: |
+          echo "Semantic release outputs:"
+          echo "new_release_version: ${{ steps.semantic.outputs.new_release_version }}"
+          echo "new_release_published: ${{ steps.semantic.outputs.new_release_published }}"
+          echo "releases_created: ${{ steps.semantic.outputs.releases_created }}"
+
+  linux:
+    runs-on: ubuntu-latest
+    needs: semantic-release
+    if: needs.semantic-release.outputs.new_release_version != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,24 +56,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-      - name: Semantic Release
-        id: semantic
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          extra_plugins: |
-            @semantic-release/git
-            @semantic-release/exec
-            @semantic-release/changelog
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Debug Output
-        run: |
-          echo "Semantic release outputs:"
-          echo "new_release_version: ${{ steps.semantic.outputs.new_release_version }}"
-          echo "new_release_published: ${{ steps.semantic.outputs.new_release_published }}"
-          echo "releases_created: ${{ steps.semantic.outputs.releases_created }}"
       - name: Run GoReleaser (Linux)
-        if: steps.semantic.outputs.new_release_version != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -55,6 +64,8 @@ jobs:
 
   darwin:
     runs-on: macos-latest
+    needs: semantic-release
+    if: needs.semantic-release.outputs.new_release_version != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,24 +75,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: stable
-      - name: Semantic Release
-        id: semantic
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          extra_plugins: |
-            @semantic-release/git
-            @semantic-release/exec
-            @semantic-release/changelog
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Debug Output
-        run: |
-          echo "Semantic release outputs:"
-          echo "new_release_version: ${{ steps.semantic.outputs.new_release_version }}"
-          echo "new_release_published: ${{ steps.semantic.outputs.new_release_published }}"
-          echo "releases_created: ${{ steps.semantic.outputs.releases_created }}"
       - name: Build macOS binaries
-        if: steps.semantic.outputs.new_release_version != ''
         run: |
           # Build darwin binaries
           GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-s -w" -o dist/projector_darwin_amd64/projector .
@@ -98,12 +92,11 @@ jobs:
           shasum -a 256 *.tar.gz > checksums_darwin.txt
           cd ..
       - name: Generate Homebrew cask
-        if: steps.semantic.outputs.new_release_version != ''
         run: |
           mkdir -p dist/homebrew/Casks
           cat > dist/homebrew/Casks/projector.rb << 'EOF'
           cask "projector" do
-            version "${{ steps.semantic.outputs.new_release_version }}"
+            version "${{ needs.semantic-release.outputs.new_release_version }}"
             sha256 "$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | cut -d' ' -f1)"
             
             url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_darwin_amd64.tar.gz"
@@ -115,7 +108,6 @@ jobs:
           end
           EOF
       - name: Push Homebrew cask to tap
-        if: steps.semantic.outputs.new_release_version != ''
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
@@ -133,6 +125,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No cask changes to commit."
           else
-            git commit -m "Update projector cask for ${{ steps.semantic.outputs.new_release_version }}"
+            git commit -m "Update projector cask for ${{ needs.semantic-release.outputs.new_release_version }}"
             git push https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git HEAD:main
           fi
