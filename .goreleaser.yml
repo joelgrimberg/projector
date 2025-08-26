@@ -1,3 +1,5 @@
+version: 2
+
 builds:
   - env:
       - CGO_ENABLED=1
@@ -10,15 +12,17 @@ builds:
     ldflags:
       - -s -w
     binary: projector
+    hooks:
+      post:
+        - cmd: chmod +x {{ .Path }}
 
 archives:
-  - format: tar.gz
-    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
 
 checksum:
   name_template: 'checksums.txt'
 
-brews:
+homebrew_casks:
   - name: projector
     repository:
       owner: joelgrimberg
