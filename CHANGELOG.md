@@ -1,3 +1,10 @@
+## [0.2.5](https://github.com/joelgrimberg/projector/compare/v0.2.4...v0.2.5) (2025-08-26)
+
+
+### Bug Fixes
+
+* rename Homebrew formula to projector-cli to avoid naming conflicts ([c2e86cc](https://github.com/joelgrimberg/projector/commit/c2e86cca76ec5be17d56b5ef4fb360117aa80dad))
+
 ## [0.2.4](https://github.com/joelgrimberg/projector/compare/v0.2.3...v0.2.4) (2025-08-26)
 
 
