@@ -128,8 +128,15 @@ jobs:
             echo "Release already exists."
           fi
           
-          upload_url=$(sed -n 's/.*"upload_url":"\([^"]*\)".*/\1/p' /tmp/release.json | sed 's/{.*}//')
+          # Use jq to properly parse the JSON response
+          upload_url=$(cat /tmp/release.json | jq -r '.upload_url' | sed 's/{.*}//')
           echo "Upload URL: $upload_url"
+          
+          if [ -z "$upload_url" ] || [ "$upload_url" = "null" ]; then
+            echo "Failed to get upload URL from release response" >&2
+            cat /tmp/release.json >&2
+            exit 1
+          fi
           
           # Upload binaries
           for file in dist/projector_linux_amd64.tar.gz dist/projector_linux_arm64.tar.gz; do
@@ -142,9 +149,10 @@ jobs:
                 --data-binary @"$file" \
                 "$upload_url?name=$name" || {
                   echo "Upload failed for $name (might already exist), attempting delete+reupload..."
-                  assets_url=$(sed -n 's/.*"assets_url":"\([^"]*\)".*/\1/p' /tmp/release.json)
-                  asset_id=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$assets_url" | sed -n "s/.*{\\\"id\\\":\([0-9]*\),\\\"name\\\":\\\"$name\\\".*/\1/p")
-                  if [ -n "${asset_id:-}" ]; then
+                  # Try to delete existing asset with same name, then re-upload
+                  assets_url=$(cat /tmp/release.json | jq -r '.assets_url')
+                  asset_id=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$assets_url" | jq -r ".[] | select(.name == \"$name\") | .id")
+                  if [ -n "${asset_id:-}" ] && [ "$asset_id" != "null" ]; then
                     curl -sSf -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$OWNER/$REPO/releases/assets/$asset_id" || true
                     curl -sSf -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/gzip" --data-binary @"$file" "$upload_url?name=$name"
                   fi
@@ -157,7 +165,7 @@ jobs:
 
   darwin:
     runs-on: macos-latest
-    needs: [semantic-release, linux]
+    needs: semantic-release
     if: needs.semantic-release.outputs.new_release_version != ''
     steps:
       - name: Checkout
@@ -217,8 +225,15 @@ jobs:
             echo "Release already exists."
           fi
           
-          upload_url=$(sed -n 's/.*"upload_url":"\([^"]*\)".*/\1/p' /tmp/release.json | sed 's/{.*}//')
+          # Use jq to properly parse the JSON response
+          upload_url=$(cat /tmp/release.json | jq -r '.upload_url' | sed 's/{.*}//')
           echo "Upload URL: $upload_url"
+          
+          if [ -z "$upload_url" ] || [ "$upload_url" = "null" ]; then
+            echo "Failed to get upload URL from release response" >&2
+            cat /tmp/release.json >&2
+            exit 1
+          fi
           
           # Upload binaries
           for file in dist/projector_darwin_amd64.tar.gz dist/projector_darwin_arm64.tar.gz; do
@@ -231,9 +246,9 @@ jobs:
                 --data-binary @"$file" \
                 "$upload_url?name=$name" || {
                   echo "Upload failed for $name (might already exist), attempting delete+reupload..."
-                  assets_url=$(sed -n 's/.*"assets_url":"\([^"]*\)".*/\1/p' /tmp/release.json)
-                  asset_id=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$assets_url" | sed -n "s/.*{\\\"id\\\":\([0-9]*\),\\\"name\\\":\\\"$name\\\".*/\1/p")
-                  if [ -n "${asset_id:-}" ]; then
+                  assets_url=$(cat /tmp/release.json | jq -r '.assets_url')
+                  asset_id=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$assets_url" | jq -r ".[] | select(.name == \"$name\") | .id")
+                  if [ -n "${asset_id:-}" ] && [ "$asset_id" != "null" ]; then
                     curl -sSf -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$OWNER/$REPO/releases/assets/$asset_id" || true
                     curl -sSf -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/gzip" --data-binary @"$file" "$upload_url?name=$name"
                   fi
