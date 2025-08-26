@@ -1,3 +1,10 @@
+## [0.2.4](https://github.com/joelgrimberg/projector/compare/v0.2.3...v0.2.4) (2025-08-26)
+
+
+### Bug Fixes
+
+* ruby stuff ([8008e37](https://github.com/joelgrimberg/projector/commit/8008e3776ddf9a34444e47d802222bd86b6d7646))
+
 ## [0.2.3](https://github.com/joelgrimberg/projector/compare/v0.2.2...v0.2.3) (2025-08-26)
 
 
