@@ -1,23 +1,20 @@
-# .github/workflows/release.yml
-name: goreleaser
+name: release
 
 on:
-  pull_request:
   push:
-    tags:
-      - "*"
-
-permissions:
-  contents: write
+    branches:
+      - main
 
 jobs:
-  linux:
+  main:
     runs-on: ubuntu-latest
+    environment:
+      name: Release
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          persist-credentials: false
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -26,55 +23,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-      - name: Run GoReleaser (Linux)
-        uses: goreleaser/goreleaser-action@v6
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
         with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean --config .goreleaser.linux.yml
+          extra_plugins: |
+            @semantic-release/git
+            @semantic-release/exec
+            @semantic-release/changelog
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  darwin:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-      - name: Run GoReleaser (Darwin) – release only
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean --config .goreleaser.darwin.yml
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Run GoReleaser
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push Homebrew cask to tap
-        if: success()
-        env:
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          TAG_NAME: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          set -euo pipefail
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          rm -rf tap
-          git clone https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git tap
-
-          mkdir -p tap/Casks
-          cp dist/homebrew/Casks/projector.rb tap/Casks/projector.rb
-
-          cd tap
-          git add Casks/projector.rb
-          if git diff --cached --quiet; then
-            echo "No cask changes to commit."
-          else
-            git commit -m "Update projector cask for ${TAG_NAME}"
-            git push https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git HEAD:main
-          fi
+          curl -sL https://git.io/goreleaser | bash
