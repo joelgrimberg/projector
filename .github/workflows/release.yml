@@ -359,11 +359,25 @@ jobs:
           
           # Upload AUR package as release asset
           echo "Uploading AUR package to release..."
-          curl -fSL -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/gzip" \
-            --data-binary "@dist/aur/projector-cli-$TAG.tar.gz" \
-            "$upload_url?name=projector-cli-$TAG.tar.gz" || echo "AUR package upload failed (might already exist)"
+          
+          # Get the release upload URL
+          release_json=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG")
+          
+          upload_url=$(echo "$release_json" | jq -r '.upload_url' | sed 's/{.*}//')
+          echo "Upload URL: $upload_url"
+          
+          if [ -n "$upload_url" ] && [ "$upload_url" != "null" ]; then
+            curl -fSL -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/gzip" \
+              --data-binary "@dist/aur/projector-cli-$TAG.tar.gz" \
+              "$upload_url?name=projector-cli-$TAG.tar.gz" || echo "AUR package upload failed (might already exist)"
+            echo "AUR package uploaded successfully!"
+          else
+            echo "Failed to get upload URL, skipping AUR package upload"
+          fi
           
       - name: Push Homebrew formula to tap
         env:
