@@ -132,7 +132,7 @@ jobs:
         run: |
           # Build darwin binaries
           GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-s -w" -o dist/projector_darwin_amd64/projector .
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -ldflags="-s - w" -o dist/projector_darwin_arm64/projector .
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -ldflags="-s -w" -o dist/projector_darwin_arm64/projector .
           
           # Create archives
           cd dist
