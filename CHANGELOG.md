@@ -1,3 +1,11 @@
+## [0.2.6](https://github.com/joelgrimberg/projector/compare/v0.2.5...v0.2.6) (2025-08-26)
+
+
+### Bug Fixes
+
+* trigger release ([583b7c7](https://github.com/joelgrimberg/projector/commit/583b7c757bfa594384fca92c64db12d0cf4a6a8a))
+* trigger release ([95e2404](https://github.com/joelgrimberg/projector/commit/95e240490acec8ea0494c7a4415bab35996caad0))
+
 ## [0.2.5](https://github.com/joelgrimberg/projector/compare/v0.2.4...v0.2.5) (2025-08-26)
 
 
