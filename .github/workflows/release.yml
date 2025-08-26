@@ -103,16 +103,37 @@ jobs:
           TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
           OWNER="joelgrimberg"
           REPO="projector"
-          release_json=$(curl -sSf -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG)
+          
+          echo "Creating release for tag: $TAG"
+          
+          # Create the release first
+          release_json=$(curl -sSf -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\",\"body\":\"Automated release for $TAG\"}" \
+            "https://api.github.com/repos/$OWNER/$REPO/releases")
+          
+          echo "Release created: $release_json"
+          
+          # Get the upload URL from the created release
           upload_url=$(echo "$release_json" | jq -r '.upload_url' | sed 's/{.*}//')
+          echo "Upload URL: $upload_url"
+          
+          # Upload binaries
           for file in dist/projector_linux_amd64.tar.gz dist/projector_linux_arm64.tar.gz; do
-            name=$(basename "$file")
-            echo "Uploading $name to $TAG"
-            curl -sSf -X POST \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Content-Type: application/gzip" \
-              --data-binary @"$file" \
-              "$upload_url?name=$name" || echo "Upload failed for $name (might already exist)"
+            if [ -f "$file" ]; then
+              name=$(basename "$file")
+              echo "Uploading $name to $TAG"
+              curl -sSf -X POST \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Content-Type: application/gzip" \
+                --data-binary @"$file" \
+                "$upload_url?name=$name"
+              echo "Successfully uploaded $name"
+            else
+              echo "Warning: $file not found, skipping upload"
+            fi
           done
 
   darwin:
@@ -152,16 +173,37 @@ jobs:
           TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
           OWNER="joelgrimberg"
           REPO="projector"
-          release_json=$(curl -sSf -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG)
+          
+          echo "Creating release for tag: $TAG"
+          
+          # Create the release first
+          release_json=$(curl -sSf -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\",\"body\":\"Automated release for $TAG\"}" \
+            "https://api.github.com/repos/$OWNER/$REPO/releases")
+          
+          echo "Release created: $release_json"
+          
+          # Get the upload URL from the created release
           upload_url=$(echo "$release_json" | jq -r '.upload_url' | sed 's/{.*}//')
+          echo "Upload URL: $upload_url"
+          
+          # Upload binaries
           for file in dist/projector_darwin_amd64.tar.gz dist/projector_darwin_arm64.tar.gz; do
-            name=$(basename "$file")
-            echo "Uploading $name to $TAG"
-            curl -sSf -X POST \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Content-Type: application/gzip" \
-              --data-binary @"$file" \
-              "$upload_url?name=$name" || echo "Upload failed for $name (might already exist)"
+            if [ -f "$file" ]; then
+              name=$(basename "$file")
+              echo "Uploading $name to $TAG"
+              curl -sSf -X POST \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Content-Type: application/gzip" \
+                --data-binary @"$file" \
+                "$upload_url?name=$name"
+              echo "Successfully uploaded $name"
+            else
+              echo "Warning: $file not found, skipping upload"
+            fi
           done
       - name: Generate Homebrew formula
         run: |
