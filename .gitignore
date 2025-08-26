@@ -32,3 +32,16 @@ vendor/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+*.tar.gz
+*.zip
+checksums*.txt
+
+# AUR package files
+PKGBUILD
+dist/aur/
+aur-repo/
+aur-repo-template/
+
+projector-cli-aur/

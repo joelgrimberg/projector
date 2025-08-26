@@ -350,6 +350,19 @@ jobs:
           
           echo "Homebrew formula generated successfully:"
           cat dist/homebrew/Formula/projector-cli.rb
+          
+          # Generate AUR package
+          echo "Generating AUR package..."
+          ./scripts/generate-aur-package.sh "$TAG" "$OWNER" "$REPO"
+          
+          # Upload AUR package as release asset
+          echo "Uploading AUR package to release..."
+          curl -fSL -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/gzip" \
+            --data-binary "@dist/aur/projector-cli-$TAG.tar.gz" \
+            "$upload_url?name=projector-cli-$TAG.tar.gz" || echo "AUR package upload failed (might already exist)"
+          
       - name: Push Homebrew formula to tap
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -376,4 +389,32 @@ jobs:
           else
             git commit -m "Update projector-cli formula for ${{ needs.semantic-release.outputs.new_release_version }}"
             git push https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git HEAD:main
+          fi
+          
+      - name: Push AUR package to repository
+        env:
+          AUR_TOKEN: ${{ secrets.AUR_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Clone AUR repository
+          rm -rf aur-repo
+          git clone https://x-access-token:${AUR_TOKEN}@github.com/joelgrimberg/projector-cli-aur.git aur-repo
+          
+          # Copy the generated PKGBUILD
+          cp dist/aur/PKGBUILD aur-repo/
+          
+          # Copy the source tarball
+          cp dist/aur/projector-$TAG.tar.gz aur-repo/
+          
+          cd aur-repo
+          git add PKGBUILD "projector-$TAG.tar.gz"
+          
+          if git diff --cached --quiet; then
+            echo "No AUR package changes to commit."
+          else
+            git commit -m "Update PKGBUILD for ${{ needs.semantic-release.outputs.new_release_version }}"
+            git push https://x-access-token:${AUR_TOKEN}@github.com/joelgrimberg/projector-cli-aur.git HEAD:main
+            echo "AUR package updated successfully!"
           fi

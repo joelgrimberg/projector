@@ -15,10 +15,35 @@ A CLI application for project and action management with a modern terminal UI.
 
 ## Installation
 
-### Via Homebrew (Recommended)
+### Homebrew (macOS/Linux)
 
+```bash
+# Add the custom tap
+brew tap joelgrimberg/homebrew-tap
+
+# Install projector-cli
+brew install projector-cli
 ```
+
+### Arch Linux (AUR)
+
+For Arch Linux users, you can install from the AUR:
+
+```bash
+# Using yay (recommended)
+yay -S projector-cli
+
+# Or manually
+git clone https://aur.archlinux.org/projector-cli.git
+cd projector-cli
+makepkg -si
 ```
+
+**Note**: The AUR package is automatically updated with each new release via our CI/CD pipeline.
+
+### Manual Installation
+
+Download the latest release for your platform from the [releases page](https://github.com/joelgrimberg/projector/releases).
 
 ## Configuration
 
