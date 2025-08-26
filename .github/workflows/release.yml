@@ -28,14 +28,12 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
       - name: Semantic Release
         id: semantic
-        uses: cycjimmy/semantic-release-action@v4
+        uses: semantic-release/github-action@v6
         with:
-          extra_plugins: |
-            @semantic-release/git
-            @semantic-release/exec
-            @semantic-release/changelog
+          semantic_version: 24
+          branches: |
+            main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Debug Output
         run: |
