@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/joel/projector/api"
-	"github.com/joel/projector/database"
-	"github.com/joel/projector/ui"
+	"github.com/joelgrimberg/projector/api"
+	"github.com/joelgrimberg/projector/database"
+	"github.com/joelgrimberg/projector/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"

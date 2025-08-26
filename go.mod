@@ -1,4 +1,4 @@
-module github.com/joel/projector
+module github.com/joelgrimberg/projector
 
 go 1.24.5
 

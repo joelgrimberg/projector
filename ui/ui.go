@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joel/projector/database"
-	"github.com/joel/projector/models"
+	"github.com/joelgrimberg/projector/database"
+	"github.com/joelgrimberg/projector/models"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"

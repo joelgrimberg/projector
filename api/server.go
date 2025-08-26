@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/joel/projector/database"
+	"github.com/joelgrimberg/projector/database"
 )
 
 // Server represents the HTTP API server

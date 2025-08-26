@@ -16,12 +16,12 @@ A CLI application for project and action management with a modern terminal UI.
 
 ### Via Homebrew (Recommended)
 ```bash
-brew install joel/tap/projector
+brew install joelgrimberg/tap/projector
 ```
 
 ### From Source
 ```bash
-git clone https://github.com/joel/projector.git
+git clone https://github.com/joelgrimberg/projector.git
 cd projector
 go install
 ```

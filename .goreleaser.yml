@@ -21,7 +21,7 @@ checksum:
 brews:
   - name: projector
     repository:
-      owner: joel
+      owner: joelgrimberg
       name: homebrew-tap
-    homepage: "https://github.com/joel/projector"
+    homepage: "https://github.com/joelgrimberg/projector"
     description: "A CLI application for project and action management"
