@@ -411,8 +411,15 @@ jobs:
         env:
           AUR_TOKEN: ${{ secrets.AUR_TOKEN }}
         run: |
+          set -euo pipefail
+          TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
+          OWNER="joelgrimberg"
+          REPO="projector"
+          
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          echo "Pushing AUR package for tag: $TAG"
           
           # Clone AUR repository
           rm -rf aur-repo
