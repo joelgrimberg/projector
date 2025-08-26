@@ -272,6 +272,8 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
+          OWNER="joelgrimberg"
+          REPO="projector"
           
           # Download all tarballs to compute checksums
           mkdir -p dist
