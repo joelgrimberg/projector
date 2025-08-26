@@ -43,9 +43,6 @@ jobs:
           echo "new_release_version: '${{ steps.semantic.outputs.new_release_version }}'"
           echo "new_release_published: '${{ steps.semantic.outputs.new_release_published }}'"
           echo "releases_created: '${{ steps.semantic.outputs.releases_created }}'"
-          echo "Length of new_release_version: ${#steps.semantic.outputs.new_release_version}"
-          echo "Is new_release_version empty? ${{ steps.semantic.outputs.new_release_version == '' }}"
-          echo "Is new_release_version not empty? ${{ steps.semantic.outputs.new_release_version != '' }}"
 
   linux:
     runs-on: ubuntu-latest
@@ -63,7 +60,7 @@ jobs:
       - name: Install cross compilers
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu jq
       - name: Build Linux binaries
         run: |
           # Build linux binaries
@@ -80,27 +77,25 @@ jobs:
           cd dist
           shasum -a 256 *.tar.gz > checksums_linux.txt
           cd ..
-      - name: Debug semantic-release outputs
-        run: |
-          echo "new_release_version: ${{ needs.semantic-release.outputs.new_release_version }}"
-          echo "new_release_published: ${{ needs.semantic-release.outputs.new_release_published }}"
-          echo "releases_created: ${{ needs.semantic-release.outputs.releases_created }}"
-      - name: Upload Linux binaries to release
-        if: needs.semantic-release.outputs.new_release_version != ''
-        run: |
-          TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
-          ls -lah dist
-          gh release upload "$TAG" ./dist/projector_linux_amd64.tar.gz --clobber
-          gh release upload "$TAG" ./dist/projector_linux_arm64.tar.gz --clobber
+      - name: Upload Linux binaries to release (API)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload Linux ARM64 binary to release
-        if: needs.semantic-release.outputs.new_release_version != ''
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
-          gh release upload "$TAG" ./dist/projector_linux_arm64.tar.gz --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER="joelgrimberg"
+          REPO="projector"
+          release_json=$(curl -sSf -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG)
+          upload_url=$(echo "$release_json" | jq -r '.upload_url' | sed 's/{.*}//')
+          for file in dist/projector_linux_amd64.tar.gz dist/projector_linux_arm64.tar.gz; do
+            name=$(basename "$file")
+            echo "Uploading $name to $TAG"
+            curl -sSf -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Content-Type: application/gzip" \
+              --data-binary @"$file" \
+              "$upload_url?name=$name" || echo "Upload failed for $name (might already exist)"
+          done
 
   darwin:
     runs-on: macos-latest
@@ -119,7 +114,7 @@ jobs:
         run: |
           # Build darwin binaries
           GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-s -w" -o dist/projector_darwin_amd64/projector .
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -ldflags="-s -w" -o dist/projector_darwin_arm64/projector .
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -ldflags="-s - w" -o dist/projector_darwin_arm64/projector .
           
           # Create archives
           cd dist
@@ -131,26 +126,25 @@ jobs:
           cd dist
           shasum -a 256 *.tar.gz > checksums_darwin.txt
           cd ..
-      - name: Debug semantic-release outputs
-        run: |
-          echo "new_release_version: ${{ needs.semantic-release.outputs.new_release_version }}"
-          echo "new_release_published: ${{ needs.semantic-release.outputs.new_release_published }}"
-          echo "releases_created: ${{ needs.semantic-release.outputs.releases_created }}"
-      - name: Upload macOS AMD64 binary to release
-        if: needs.semantic-release.outputs.new_release_version != ''
-        run: |
-          TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
-          ls -lah dist
-          gh release upload "$TAG" ./dist/projector_darwin_amd64.tar.gz --clobber
+      - name: Upload macOS binaries to release (API)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload macOS ARM64 binary to release
-        if: needs.semantic-release.outputs.new_release_version != ''
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
-          gh release upload "$TAG" ./dist/projector_darwin_arm64.tar.gz --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER="joelgrimberg"
+          REPO="projector"
+          release_json=$(curl -sSf -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG)
+          upload_url=$(echo "$release_json" | jq -r '.upload_url' | sed 's/{.*}//')
+          for file in dist/projector_darwin_amd64.tar.gz dist/projector_darwin_arm64.tar.gz; do
+            name=$(basename "$file")
+            echo "Uploading $name to $TAG"
+            curl -sSf -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Content-Type: application/gzip" \
+              --data-binary @"$file" \
+              "$upload_url?name=$name" || echo "Upload failed for $name (might already exist)"
+          done
       - name: Generate Homebrew formula
         run: |
           mkdir -p dist/homebrew/Formula
