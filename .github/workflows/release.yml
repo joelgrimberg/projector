@@ -77,24 +77,45 @@ jobs:
           cd dist
           shasum -a 256 *.tar.gz > checksums_linux.txt
           cd ..
+      - name: Debug semantic-release outputs
+        run: |
+          echo "new_release_version: ${{ needs.semantic-release.outputs.new_release_version }}"
+          echo "new_release_published: ${{ needs.semantic-release.outputs.new_release_published }}"
+          echo "releases_created: ${{ needs.semantic-release.outputs.releases_created }}"
       - name: Upload Linux binaries to release
-        uses: actions/upload-release-asset@v1
+        if: needs.semantic-release.outputs.releases_created != ''
+        run: |
+          # Get the release upload URL from GitHub API
+          RELEASE_ID=$(gh api repos/joelgrimberg/projector/releases/latest --jq '.id')
+          UPLOAD_URL="https://uploads.github.com/repos/joelgrimberg/projector/releases/$RELEASE_ID/assets"
+          
+          # Upload AMD64 binary
+          gh api $UPLOAD_URL \
+            -F name="projector_linux_amd64.tar.gz" \
+            -F label="Linux AMD64 Binary" \
+            -F file=@./dist/projector_linux_amd64.tar.gz
+          
+          # Upload ARM64 binary
+          gh api $UPLOAD_URL \
+            -F name="projector_linux_arm64.tar.gz" \
+            -F label="Linux ARM64 Binary" \
+            -F file=@./dist/projector_linux_arm64.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
-          asset_path: ./dist/projector_linux_amd64.tar.gz
-          asset_name: projector_linux_amd64.tar.gz
-          asset_content_type: application/gzip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Linux ARM64 binary to release
-        uses: actions/upload-release-asset@v1
+        if: needs.semantic-release.outputs.releases_created != ''
+        run: |
+          # Get the release upload URL from GitHub API
+          RELEASE_ID=$(gh api repos/joelgrimberg/projector/releases/latest --jq '.id')
+          UPLOAD_URL="https://uploads.github.com/repos/joelgrimberg/projector/releases/$RELEASE_ID/assets"
+          
+          # Upload ARM64 binary
+          gh api $UPLOAD_URL \
+            -F name="projector_linux_arm64.tar.gz" \
+            -F label="Linux ARM64 Binary" \
+            -F file=@./dist/projector_linux_arm64.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
-          asset_path: ./dist/projector_linux_arm64.tar.gz
-          asset_name: projector_linux_arm64.tar.gz
-          asset_content_type: application/gzip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   darwin:
     runs-on: macos-latest
@@ -125,24 +146,39 @@ jobs:
           cd dist
           shasum -a 256 *.tar.gz > checksums_darwin.txt
           cd ..
+      - name: Debug semantic-release outputs
+        run: |
+          echo "new_release_version: ${{ needs.semantic-release.outputs.new_release_version }}"
+          echo "new_release_published: ${{ needs.semantic-release.outputs.new_release_published }}"
+          echo "releases_created: ${{ needs.semantic-release.outputs.releases_created }}"
       - name: Upload macOS AMD64 binary to release
-        uses: actions/upload-release-asset@v1
+        if: needs.semantic-release.outputs.releases_created != ''
+        run: |
+          # Get the release upload URL from GitHub API
+          RELEASE_ID=$(gh api repos/joelgrimberg/projector/releases/latest --jq '.id')
+          UPLOAD_URL="https://uploads.github.com/repos/joelgrimberg/projector/releases/$RELEASE_ID/assets"
+          
+          # Upload AMD64 binary
+          gh api $UPLOAD_URL \
+            -F name="projector_darwin_amd64.tar.gz" \
+            -F label="macOS AMD64 Binary" \
+            -F file=@./dist/projector_darwin_amd64.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
-          asset_path: ./dist/projector_darwin_amd64.tar.gz
-          asset_name: projector_darwin_amd64.tar.gz
-          asset_content_type: application/gzip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload macOS ARM64 binary to release
-        uses: actions/upload-release-asset@v1
+        if: needs.semantic-release.outputs.releases_created != ''
+        run: |
+          # Get the release upload URL from GitHub API
+          RELEASE_ID=$(gh api repos/joelgrimberg/projector/releases/latest --jq '.id')
+          UPLOAD_URL="https://uploads.github.com/repos/joelgrimberg/projector/releases/$RELEASE_ID/assets"
+          
+          # Upload ARM64 binary
+          gh api $UPLOAD_URL \
+            -F name="projector_darwin_arm64.tar.gz" \
+            -F label="macOS ARM64 Binary" \
+            -F file=@./dist/projector_darwin_arm64.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.semantic-release.outputs.releases_created }}
-          asset_path: ./dist/projector_darwin_arm64.tar.gz
-          asset_name: projector_darwin_arm64.tar.gz
-          asset_content_type: application/gzip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Homebrew formula
         run: |
           mkdir -p dist/homebrew/Formula
