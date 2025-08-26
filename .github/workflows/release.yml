@@ -46,11 +46,35 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: stable
-      - name: Run GoReleaser (Darwin)
+      - name: Run GoReleaser (Darwin) – release only
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
           args: release --clean --config .goreleaser.darwin.yml
         env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Homebrew cask to tap
+        if: success()
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          rm -rf tap
+          git clone https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git tap
+
+          mkdir -p tap/Casks
+          cp dist/homebrew/Casks/projector.rb tap/Casks/projector.rb
+
+          cd tap
+          git add Casks/projector.rb
+          if git diff --cached --quiet; then
+            echo "No cask changes to commit."
+          else
+            git commit -m "Update projector cask for ${TAG_NAME}"
+            git push origin HEAD
+          fi
