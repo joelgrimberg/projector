@@ -1,3 +1,10 @@
+## [0.2.8](https://github.com/joelgrimberg/projector/compare/v0.2.7...v0.2.8) (2025-08-26)
+
+
+### Bug Fixes
+
+* add upload steps to upload binary files to GitHub releases ([461863f](https://github.com/joelgrimberg/projector/commit/461863f942f0e8407096fd181afa6a31e9ccaed8))
+
 ## [0.2.7](https://github.com/joelgrimberg/projector/compare/v0.2.6...v0.2.7) (2025-08-26)
 
 
