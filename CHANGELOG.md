@@ -1,3 +1,10 @@
+## [0.2.9](https://github.com/joelgrimberg/projector/compare/v0.2.8...v0.2.9) (2025-08-26)
+
+
+### Bug Fixes
+
+* replace problematic upload action with direct GitHub API calls ([ce93a6c](https://github.com/joelgrimberg/projector/commit/ce93a6c784a6a65a9eaa0cb5c8cec3ed3fad0faa))
+
 ## [0.2.8](https://github.com/joelgrimberg/projector/compare/v0.2.7...v0.2.8) (2025-08-26)
 
 
