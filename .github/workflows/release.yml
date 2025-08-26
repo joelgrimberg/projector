@@ -26,14 +26,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-      - name: Install cross compilers
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
       - name: Semantic Release
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
@@ -51,12 +43,6 @@ jobs:
           echo "new_release_version: ${{ steps.semantic.outputs.new_release_version }}"
           echo "new_release_published: ${{ steps.semantic.outputs.new_release_published }}"
           echo "releases_created: ${{ steps.semantic.outputs.releases_created }}"
-      - name: Run GoReleaser (Linux)
-        if: steps.semantic.outputs.new_release_version != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          curl -sL https://git.io/goreleaser | bash
 
   linux:
     runs-on: ubuntu-latest
@@ -122,14 +108,13 @@ jobs:
           shasum -a 256 *.tar.gz > checksums_darwin.txt
           cd ..
       - name: Generate Homebrew formula
-        if: steps.semantic.outputs.new_release_version != ''
         run: |
           mkdir -p dist/homebrew/Formula
           cat > dist/homebrew/Formula/projector-cli.rb << 'EOF'
           class ProjectorCli < Formula
             desc "A CLI application for project and action management"
             homepage "https://github.com/joelgrimberg/projector"
-            version "${{ steps.semantic.outputs.new_release_version }}"
+            version "${{ needs.semantic-release.outputs.new_release_version }}"
             license "MIT"
             
             on_macos do
@@ -162,7 +147,6 @@ jobs:
           end
           EOF
       - name: Push Homebrew formula to tap
-        if: steps.semantic.outputs.new_release_version != ''
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
@@ -172,14 +156,20 @@ jobs:
           rm -rf tap
           git clone https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git tap
           
+          # Remove old cask file if it exists
+          rm -f tap/Casks/projector.rb
+          
+          # Create Formula directory and add new formula
           mkdir -p tap/Formula
           cp dist/homebrew/Formula/projector-cli.rb tap/Formula/projector-cli.rb
           
           cd tap
           git add Formula/projector-cli.rb
+          git rm -f Casks/projector.rb 2>/dev/null || true
+          
           if git diff --cached --quiet; then
             echo "No formula changes to commit."
           else
-            git commit -m "Update projector-cli formula for ${{ steps.semantic.outputs.new_release_version }}"
+            git commit -m "Update projector-cli formula for ${{ needs.semantic-release.outputs.new_release_version }}"
             git push https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git HEAD:main
           fi
