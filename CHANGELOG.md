@@ -1,3 +1,10 @@
+## [0.2.3](https://github.com/joelgrimberg/projector/compare/v0.2.2...v0.2.3) (2025-08-26)
+
+
+### Bug Fixes
+
+* move GoReleaser to semantic-release job so it can see the created tag ([c559e1d](https://github.com/joelgrimberg/projector/commit/c559e1d0cfe16afa7126155f64e9117c4cfbe84b))
+
 ## [0.2.2](https://github.com/joelgrimberg/projector/compare/v0.2.1...v0.2.2) (2025-08-26)
 
 
