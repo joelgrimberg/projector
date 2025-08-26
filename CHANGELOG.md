@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/joelgrimberg/projector/compare/v0.2.9...v0.3.0) (2025-08-26)
+
+
+### Features
+
+* trigger binary release ([3450730](https://github.com/joelgrimberg/projector/commit/34507301f77f022bed37cff87e979350f5965f84))
+
 ## [0.2.9](https://github.com/joelgrimberg/projector/compare/v0.2.8...v0.2.9) (2025-08-26)
 
 
