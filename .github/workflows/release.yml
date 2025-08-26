@@ -258,28 +258,58 @@ jobs:
               echo "Warning: $file not found, skipping upload"
             fi
           done
+
+  formula-generator:
+    runs-on: ubuntu-latest
+    needs: [semantic-release, linux, darwin]
+    if: needs.semantic-release.outputs.new_release_version != ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Generate Homebrew formula
         run: |
           set -euo pipefail
           TAG="v${{ needs.semantic-release.outputs.new_release_version }}"
           
-          # Ensure Linux tarballs are available locally to compute checksums
+          # Download all tarballs to compute checksums
           mkdir -p dist
-          echo "Downloading Linux tarballs for checksum computation..."
+          echo "Downloading all tarballs for checksum computation..."
+          
+          # Download Linux tarballs
           curl -fSL --retry 5 --retry-delay 2 -o dist/projector_linux_amd64.tar.gz "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_linux_amd64.tar.gz"
           curl -fSL --retry 5 --retry-delay 2 -o dist/projector_linux_arm64.tar.gz "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_linux_arm64.tar.gz"
           
-          if [ ! -f dist/projector_linux_amd64.tar.gz ] || [ ! -f dist/projector_linux_arm64.tar.gz ]; then
-            echo "Linux tarballs not found after download attempts; aborting formula generation." >&2
-            ls -lah dist || true
-            exit 1
-          fi
+          # Download macOS tarballs
+          curl -fSL --retry 5 --retry-delay 2 -o dist/projector_darwin_amd64.tar.gz "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_darwin_amd64.tar.gz"
+          curl -fSL --retry 5 --retry-delay 2 -o dist/projector_darwin_arm64.tar.gz "https://github.com/joelgrimberg/projector/releases/download/${TAG}/projector_darwin_arm64.tar.gz"
           
+          # Verify all files exist
+          for file in dist/projector_*.tar.gz; do
+            if [ ! -f "$file" ]; then
+              echo "Error: Required file $file not found after download" >&2
+              ls -lah dist || true
+              exit 1
+            fi
+          done
+          
+          echo "All tarballs downloaded successfully:"
+          ls -lah dist/*.tar.gz
+          
+          # Compute checksums
           MAC_AMD_SHA=$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | awk '{print $1}')
           MAC_ARM_SHA=$(shasum -a 256 dist/projector_darwin_arm64.tar.gz | awk '{print $1}')
           LINUX_AMD_SHA=$(shasum -a 256 dist/projector_linux_amd64.tar.gz | awk '{print $1}')
           LINUX_ARM_SHA=$(shasum -a 256 dist/projector_linux_arm64.tar.gz | awk '{print $1}')
           
+          echo "Checksums computed:"
+          echo "macOS AMD64: $MAC_AMD_SHA"
+          echo "macOS ARM64: $MAC_ARM_SHA"
+          echo "Linux AMD64: $LINUX_AMD_SHA"
+          echo "Linux ARM64: $LINUX_ARM_SHA"
+          
+          # Generate Homebrew formula
           mkdir -p dist/homebrew/Formula
           cat > dist/homebrew/Formula/projector-cli.rb << EOF
           class ProjectorCli < Formula
@@ -317,6 +347,9 @@ jobs:
             end
           end
           EOF
+          
+          echo "Homebrew formula generated successfully:"
+          cat dist/homebrew/Formula/projector-cli.rb
       - name: Push Homebrew formula to tap
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
