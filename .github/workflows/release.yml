@@ -104,20 +104,31 @@ jobs:
           OWNER="joelgrimberg"
           REPO="projector"
           
-          echo "Creating release for tag: $TAG"
+          echo "Ensuring release exists for tag: $TAG"
           
-          # Create the release first
-          release_json=$(curl -sSf -X POST \
+          # Try to fetch existing release
+          http_code=$(curl -sS -o /tmp/release.json -w "%{http_code}" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\",\"body\":\"Automated release for $TAG\"}" \
-            "https://api.github.com/repos/$OWNER/$REPO/releases")
+            "https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG" || true)
           
-          echo "Release created: $release_json"
+          if [ "$http_code" = "404" ]; then
+            echo "Release not found, creating..."
+            curl -sSf -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\",\"body\":\"Automated release for $TAG\"}" \
+              "https://api.github.com/repos/$OWNER/$REPO/releases" > /tmp/release.json
+          elif [ "$http_code" != "200" ]; then
+            echo "Unexpected status fetching release: $http_code" >&2
+            cat /tmp/release.json >&2 || true
+            exit 1
+          else
+            echo "Release already exists."
+          fi
           
-          # Get the upload URL from the created release
-          upload_url=$(echo "$release_json" | jq -r '.upload_url' | sed 's/{.*}//')
+          upload_url=$(sed -n 's/.*"upload_url":"\([^"]*\)".*/\1/p' /tmp/release.json | sed 's/{.*}//')
           echo "Upload URL: $upload_url"
           
           # Upload binaries
@@ -129,8 +140,16 @@ jobs:
                 -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Content-Type: application/gzip" \
                 --data-binary @"$file" \
-                "$upload_url?name=$name"
-              echo "Successfully uploaded $name"
+                "$upload_url?name=$name" || {
+                  echo "Upload failed for $name (might already exist), attempting delete+reupload..."
+                  assets_url=$(sed -n 's/.*"assets_url":"\([^"]*\)".*/\1/p' /tmp/release.json)
+                  asset_id=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$assets_url" | sed -n "s/.*{\\\"id\\\":\([0-9]*\),\\\"name\\\":\\\"$name\\\".*/\1/p")
+                  if [ -n "${asset_id:-}" ]; then
+                    curl -sSf -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$OWNER/$REPO/releases/assets/$asset_id" || true
+                    curl -sSf -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/gzip" --data-binary @"$file" "$upload_url?name=$name"
+                  fi
+                }
+              echo "Uploaded $name"
             else
               echo "Warning: $file not found, skipping upload"
             fi
@@ -174,20 +193,31 @@ jobs:
           OWNER="joelgrimberg"
           REPO="projector"
           
-          echo "Creating release for tag: $TAG"
+          echo "Ensuring release exists for tag: $TAG"
           
-          # Create the release first
-          release_json=$(curl -sSf -X POST \
+          # Try to fetch existing release
+          http_code=$(curl -sS -o /tmp/release.json -w "%{http_code}" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\",\"body\":\"Automated release for $TAG\"}" \
-            "https://api.github.com/repos/$OWNER/$REPO/releases")
+            "https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG" || true)
           
-          echo "Release created: $release_json"
+          if [ "$http_code" = "404" ]; then
+            echo "Release not found, creating..."
+            curl -sSf -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\",\"body\":\"Automated release for $TAG\"}" \
+              "https://api.github.com/repos/$OWNER/$REPO/releases" > /tmp/release.json
+          elif [ "$http_code" != "200" ]; then
+            echo "Unexpected status fetching release: $http_code" >&2
+            cat /tmp/release.json >&2 || true
+            exit 1
+          else
+            echo "Release already exists."
+          fi
           
-          # Get the upload URL from the created release
-          upload_url=$(echo "$release_json" | jq -r '.upload_url' | sed 's/{.*}//')
+          upload_url=$(sed -n 's/.*"upload_url":"\([^"]*\)".*/\1/p' /tmp/release.json | sed 's/{.*}//')
           echo "Upload URL: $upload_url"
           
           # Upload binaries
@@ -199,8 +229,16 @@ jobs:
                 -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Content-Type: application/gzip" \
                 --data-binary @"$file" \
-                "$upload_url?name=$name"
-              echo "Successfully uploaded $name"
+                "$upload_url?name=$name" || {
+                  echo "Upload failed for $name (might already exist), attempting delete+reupload..."
+                  assets_url=$(sed -n 's/.*"assets_url":"\([^"]*\)".*/\1/p' /tmp/release.json)
+                  asset_id=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$assets_url" | sed -n "s/.*{\\\"id\\\":\([0-9]*\),\\\"name\\\":\\\"$name\\\".*/\1/p")
+                  if [ -n "${asset_id:-}" ]; then
+                    curl -sSf -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$OWNER/$REPO/releases/assets/$asset_id" || true
+                    curl -sSf -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/gzip" --data-binary @"$file" "$upload_url?name=$name"
+                  fi
+                }
+              echo "Uploaded $name"
             else
               echo "Warning: $file not found, skipping upload"
             fi
