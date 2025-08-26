@@ -76,5 +76,5 @@ jobs:
             echo "No cask changes to commit."
           else
             git commit -m "Update projector cask for ${TAG_NAME}"
-            git push origin HEAD
+            git push https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git HEAD:main
           fi
