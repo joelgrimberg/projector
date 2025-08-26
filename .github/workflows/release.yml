@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  main:
+  linux:
     runs-on: ubuntu-latest
     environment:
       name: Release
@@ -31,10 +31,75 @@ jobs:
             @semantic-release/exec
             @semantic-release/changelog
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-      - name: Run GoReleaser
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run GoReleaser (Linux)
         env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           curl -sL https://git.io/goreleaser | bash
+
+  darwin:
+    runs-on: macos-latest
+    needs: linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Build macOS binaries
+        run: |
+          # Build darwin binaries
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-s -w" -o dist/projector_darwin_amd64/projector .
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -ldflags="-s -w" -o dist/projector_darwin_arm64/projector .
+          
+          # Create archives
+          cd dist
+          tar -czf projector_darwin_amd64.tar.gz projector_darwin_amd64/
+          tar -czf projector_darwin_arm64.tar.gz projector_darwin_arm64/
+          cd ..
+          
+          # Create checksums
+          cd dist
+          shasum -a 256 *.tar.gz > checksums_darwin.txt
+          cd ..
+      - name: Generate Homebrew cask
+        run: |
+          mkdir -p dist/homebrew/Casks
+          cat > dist/homebrew/Casks/projector.rb << 'EOF'
+          cask "projector" do
+            version "${{ needs.linux.outputs.new_release_version }}"
+            sha256 "$(shasum -a 256 dist/projector_darwin_amd64.tar.gz | cut -d' ' -f1)"
+            
+            url "https://github.com/joelgrimberg/projector/releases/download/v#{version}/projector_darwin_amd64.tar.gz"
+            name "Projector"
+            desc "A CLI application for project and action management"
+            homepage "https://github.com/joelgrimberg/projector"
+            
+            binary "projector"
+          end
+          EOF
+      - name: Push Homebrew cask to tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          rm -rf tap
+          git clone https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git tap
+          
+          mkdir -p tap/Casks
+          cp dist/homebrew/Casks/projector.rb tap/Casks/projector.rb
+          
+          cd tap
+          git add Casks/projector.rb
+          if git diff --cached --quiet; then
+            echo "No cask changes to commit."
+          else
+            git commit -m "Update projector cask for ${{ needs.linux.outputs.new_release_version }}"
+            git push https://x-access-token:${TAP_TOKEN}@github.com/joelgrimberg/homebrew-tap.git HEAD:main
+          fi

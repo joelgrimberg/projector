@@ -14,7 +14,6 @@ builds:
       - CGO_ENABLED=1
     goos:
       - linux
-      - darwin
     goarch:
       - amd64
       - arm64
@@ -44,24 +43,3 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-
-brews:
-  -
-    name: projector
-    commit_author:
-      name: joelgrimberg
-      email: joelgrimberg@users.noreply.github.com
-    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-    directory: Formula
-    description: "A CLI application for project and action management"
-    license: "MIT"
-    install: |
-      bin.install "projector"
-    test: |
-      system "#{bin}/projector --help"
-    # Repository to push the generated files to.
-    repository:
-      owner: joelgrimberg
-      name: homebrew-tap
-      branch: main
-      token: "{{ .Env.GITHUB_TOKEN }}"
